@@ -20,9 +20,9 @@ export interface CalendarEvent {
     propertyId: string;
     propertyName: string;
     platform: string;
-    guestName?: string;
     bookingUid: string;
     icalSourceId: string;
+    guestName?: string;
   };
 }
 

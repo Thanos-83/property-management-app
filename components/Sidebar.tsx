@@ -45,12 +45,12 @@ export default function Sidebar() {
         pathname.split('/')[pathname.split('/').length - 1] === 'calendar',
     },
     {
-      tag: '#',
-      label: 'Campaigns',
+      tag: 'bookings',
+      label: 'Bookings',
       icon: <BarChart size={18} />,
       badge: 'NEW',
       active:
-        pathname.split('/')[pathname.split('/').length - 1] === 'campaigns',
+        pathname.split('/')[pathname.split('/').length - 1] === 'bookings',
     },
     {
       tag: '#',

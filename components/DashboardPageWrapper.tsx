@@ -8,7 +8,7 @@ function DashboardPageWrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={`flex min-h-screen transition-all duration-200  ${
+      className={`flex h-full transition-all duration-200  ${
         open ? 'ml-[var(--sidebar-width)]' : 'ml-0'
       } `}>
       {children}

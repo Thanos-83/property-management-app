@@ -13,12 +13,10 @@ export async function GET() {
       error: userError,
     } = await supabase.auth.getUser();
 
-    // console.log('User Info in GET calendar Method: ', user);
-
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
+    console.log('Iam in the calendar api route 1');
     // Get all bookings for user's properties
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
@@ -75,7 +73,7 @@ export async function GET() {
 
     // Detect conflicts
     const conflicts = detectConflicts(calendarEvents);
-
+    // console.log('Calendar DATA in API ROUTE: ', calendarEvents);
     return NextResponse.json({
       events: calendarEvents,
       conflicts,

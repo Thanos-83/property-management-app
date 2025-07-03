@@ -1,14 +1,10 @@
-import { login, signup } from './actions';
+import LoginForm from '@/components/login/LoginForm';
 
 export default function LoginPage() {
   return (
-    <form className='flex flex-col gap-2 w-[400px] mx-auto'>
-      <label htmlFor='email'>Email:</label>
-      <input id='email' name='email' type='email' required />
-      <label htmlFor='password'>Password:</label>
-      <input id='password' name='password' type='password' required />
-      <button formAction={login}>Log in</button>
-      <button formAction={signup}>Sign up</button>
-    </form>
+    <div className='max-w-xl mx-auto mt-10'>
+      <h1>Login/Register Form</h1>
+      <LoginForm />
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, use } from 'react';
 import { Calendar, momentLocalizer, View, Views } from 'react-big-calendar';
 import moment from 'moment';
 import { CalendarEvent, ConflictDetection } from '@/types/bookingTypes';
@@ -17,10 +17,6 @@ import Image from 'next/image';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 const localizer = momentLocalizer(moment);
-
-interface EnhancedCalendarProps {
-  className?: string;
-}
 
 interface CalendarData {
   events: CalendarEvent[];
@@ -44,7 +40,11 @@ const platformIcons: Record<string, string> = {
   Expedia: '/icons/expedia.svg',
 };
 
-export default function EnhancedCalendar({ className }: EnhancedCalendarProps) {
+export default function EnhancedCalendar({
+  bookingData,
+}: {
+  bookingData: Promise<{ events: Array<CalendarEvent> }>;
+}) {
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -55,6 +55,8 @@ export default function EnhancedCalendar({ className }: EnhancedCalendarProps) {
   );
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
   const [platformFilter, setPlatformFilter] = useState<string>('all');
+  const data = use(bookingData);
+  console.log('Booking Data on the Client: ', data);
 
   // Fetch calendar data
   const fetchCalendarData = async () => {
@@ -167,9 +169,9 @@ export default function EnhancedCalendar({ className }: EnhancedCalendarProps) {
           <Image
             src={platformIcons[event.resource.platform]}
             alt={event.resource.platform}
-            width={12}
-            height={12}
-            className='flex-shrink-0'
+            width={8}
+            height={8}
+            className='w-24 h-6 flex-shrink-0'
           />
         )}
         <span className='truncate font-medium'>
@@ -197,7 +199,7 @@ export default function EnhancedCalendar({ className }: EnhancedCalendarProps) {
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`space-y-4`}>
       {/* Header with controls */}
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <div className='flex items-center space-x-4'>
@@ -290,7 +292,7 @@ export default function EnhancedCalendar({ className }: EnhancedCalendarProps) {
       {/* Calendar */}
       <div
         className='bg-white rounded-lg border p-4'
-        style={{ height: '600px' }}>
+        style={{ height: '580px' }}>
         <Calendar
           localizer={localizer}
           events={filteredEvents}

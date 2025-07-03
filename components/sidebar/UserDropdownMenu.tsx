@@ -10,20 +10,47 @@ import {
 import { User } from 'lucide-react';
 
 import { createClient } from '@/lib/utils/supabase/client';
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { Button } from '../ui/button';
 
 export default function UserDropdownMenu() {
+  const [userAvatar, setUserAvatar] = useState('');
+  const supabase = createClient();
+
   const handleSignOut = async () => {
-    const supabase = await createClient();
     const result = await supabase.auth.signOut();
 
     console.log('Sign out result: ', result);
   };
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      const { data, error } = await supabase.auth.getUser();
+
+      if (!error) {
+        setUserAvatar(data.user.user_metadata.avatar_url);
+      }
+    };
+    fetchUserInfo();
+  }, [supabase.auth]);
+  // console.log(object);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className='rounded-full bg-primary-accent w-10 h-10 flex items-center justify-center text-white focus:outline-primary'>
-          <User />
-        </button>
+        <Button className='ml-4 rounded-full w-8 h-8 p-0  text-white focus:outline-primary'>
+          {!userAvatar ? (
+            <User />
+          ) : (
+            <Image
+              className='object-fill w-full border border-accent overflow-hidden rounded-full '
+              src={userAvatar}
+              width={36}
+              height={36}
+              alt='user avatar'
+            />
+          )}
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align='end'
