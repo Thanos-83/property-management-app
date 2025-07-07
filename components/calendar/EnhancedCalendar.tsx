@@ -129,7 +129,7 @@ export default function EnhancedCalendar({
 
       {/* Calendar */}
       <div
-        className='bg-white rounded-lg border p-4'
+        className='group-has-[[data-pending]]:animate-pulse iam-here-2 bg-white rounded-lg border p-4'
         style={{ height: '580px' }}>
         <Calendar
           localizer={localizer}

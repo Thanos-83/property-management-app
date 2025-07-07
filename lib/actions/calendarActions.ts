@@ -1,11 +1,6 @@
-import {
-  CalendarData,
-  CalendarEvent,
-  BookingEvent,
-} from '@/types/bookingTypes';
+import { CalendarData, CalendarEvent } from '@/types/bookingTypes';
 import { createClient } from '../utils/supabase/server';
 import detectBookingConflicts from '../utils/bookings/detectBookingConflicts';
-import { PropertyTypesApi } from '@/types/propertyTypes';
 
 // Fetch calendar data by platform
 
@@ -19,8 +14,8 @@ export const fetchCalendarDataAction = async ({
   try {
     const supabase = await createClient();
 
-    console.log('Search Params in Server Action: ', platform);
-    console.log('Search Params in Server Action: ', property);
+    console.log('Search Params in Server Action: - Platform ', platform);
+    console.log('Search Params in Server Action: - Property', property);
 
     // Auth: get the user from supabase session
     const {
@@ -30,6 +25,16 @@ export const fetchCalendarDataAction = async ({
 
     if (userError || !user) {
       return { error: 'Unauthorized', status: 401 };
+    }
+
+    const propertiesQuery = supabase.from('properties').select('*');
+
+    const { data: properties, error: propertiesError } = await propertiesQuery;
+
+    let firstProperty;
+    if (!propertiesError) {
+      // console.log('Properties: ', properties);
+      firstProperty = properties[0].id;
     }
 
     let query = supabase
@@ -47,22 +52,23 @@ export const fetchCalendarDataAction = async ({
       )
     `
       )
-      .eq('properties.owner_id', user.id)
-      .eq('property_id', property);
+      .eq('properties.owner_id', user.id);
 
     if (platform !== 'All') {
       query = query.eq('platform', platform);
     }
 
-    // if (property) {
-    //   query = query.eq('property_id', property);
-    // }
+    if (property) {
+      query = query.eq('property_id', property);
+    } else {
+      query = query.eq('property_id', firstProperty);
+    }
 
     const { data: bookings, error: bookingsError } = await query;
 
     if (bookingsError) {
       console.error('Error fetching bookings:', bookingsError);
-      return { error: 'Failed to fetch bookings', status: 500 };
+      return { error: bookingsError.message, status: 500 };
     }
 
     // Transform bookings to calendar events
@@ -112,74 +118,25 @@ export const fetchCalendarDataAction = async ({
   }
 };
 
-// Fetch property available platforms
-export const fetchPropertyPlatformsAction = async (property: string) => {
-  const supabase = await createClient();
-
-  console.log('Property ID: ', property);
-  // console.log('Platform: ', platform);
-  // Auth: get the user from supabase session
-  //   const {
-  //     data: { user },
-  //     error: userError,
-  //   } = await supabase.auth.getUser();
-
-  //   if (userError || !user) {
-  //     return { error: 'Unauthorized', status: 401 };
-  //   }
-
-  let query = supabase.from('property_icals').select('*');
-
-  if (property) {
-    query = query.eq('property_id', property);
-  }
-  const { data: bookings, error: bookingsError } = await query;
-
-  //   console.log('Bookings Data: ', bookings);
-
-  if (bookingsError) {
-  }
-  const platforms = bookings
-    ? Array.from(
-        new Set(bookings.map((booking: BookingEvent) => booking.platform))
-      )
-    : [];
-
-  const extendedPlatforms = platforms.toSpliced(0, 0, 'All');
-  // console.log('Property Platforms: ', platforms);
-  // console.log('All Property Platforms: ', extendedPlatforms);
-  return extendedPlatforms;
-};
-
 // Fetch  properties
-export const fetchPropertiesDataAction = async () => {
+export const fetchCalendarDataFilterOptionsAction = async () => {
   const supabase = await createClient();
 
-  // Auth: get the user from supabase session
-  //   const {
-  //     data: { user },
-  //     error: userError,
-  //   } = await supabase.auth.getUser();
+  const query = supabase.from('properties').select(`
+    id,
+    title,
+    ical_urls:property_icals(
+    platform,
+    ical_url
+    )
+    `);
 
-  //   if (userError || !user) {
-  //     return { error: 'Unauthorized', status: 401 };
-  //   }
+  const { data: filterOptions, error: filterOptionsError } = await query;
 
-  const query = supabase.from('properties').select('*');
-
-  const { data: properties, error: propertiesError } = await query;
-
-  // console.log('Properties Data: ', properties);
-
-  if (propertiesError) {
+  // console.log('filterOptions Data: ', filterOptions);
+  if (filterOptionsError) {
+    console.log('Fetch filter options Error: ', filterOptionsError);
   }
-  const propertyData = properties?.map((property: PropertyTypesApi) => {
-    return {
-      propertyId: property.id,
-      propertyName: property.title,
-    };
-  });
-
-  // console.log('Properties: ', propertyData);
-  return propertyData;
+  // console.log('filterOptions: ', propertyData);
+  return filterOptions ?? [];
 };

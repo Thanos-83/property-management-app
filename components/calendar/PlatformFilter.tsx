@@ -21,9 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-import { use } from 'react';
-import { useQueryState } from 'nuqs';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const FormSchema = z.object({
   platform: z.string({
@@ -31,32 +30,35 @@ const FormSchema = z.object({
   }),
 });
 
+type PropertyPlatformsTypes = {
+  propertyPlatforms: { ical_url: string; platform: string }[];
+  handlePlatformFilter: (value: string) => void;
+  searchParamPlatform: string;
+};
+
 export function PlatformFilter({
   propertyPlatforms,
-}: {
-  propertyPlatforms: Promise<Array<string>>;
-}) {
-  const platforms = use(propertyPlatforms);
+  handlePlatformFilter,
+  searchParamPlatform,
+}: PropertyPlatformsTypes) {
+  const searchParams = useSearchParams();
+
+  const platform = searchParams.get('platform');
+
+  const [x, setX] = useState(searchParamPlatform);
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
 
-  const [platform, setPlatform] = useQueryState(
-    'platform',
-    // parseAsString.withDefault('')
-    {
-      defaultValue: '',
-      history: 'push',
-      shallow: false,
+  useEffect(() => {
+    if (!platform) {
+      setX(searchParamPlatform);
     }
-  );
+  }, [searchParamPlatform, platform]);
 
-  // console.log('Platforms: ', platforms);
-  // console.log('PLATFORM: ', platform);
-
-  async function handleSelectChange(value: string) {
-    setPlatform(value);
-  }
+  console.log('Platforms in Platform Filter 1: ', platform);
+  console.log('Platforms in Platform Filter 2: ', searchParamPlatform);
 
   return (
     <Form {...form}>
@@ -67,9 +69,9 @@ export function PlatformFilter({
           <FormItem className='flex items-center gap-4'>
             <FormLabel>Platform</FormLabel>
             <Select
-              defaultValue={platforms[0]}
+              defaultValue={x}
               onValueChange={(selectedValue) => {
-                handleSelectChange(selectedValue);
+                handlePlatformFilter(selectedValue);
               }}
               {...field}>
               <FormControl>
@@ -78,16 +80,22 @@ export function PlatformFilter({
                 </SelectTrigger>
               </FormControl>
               <SelectContent className='w-[16rem]'>
-                {platforms?.map((platform, index) => {
-                  return (
-                    <SelectItem
-                      className='w-[16rem]'
-                      key={index}
-                      value={`${platform}`}>
-                      {platform}
-                    </SelectItem>
-                  );
-                })}
+                <SelectItem className='w-[16rem]' value={`All`}>
+                  All
+                </SelectItem>
+                {propertyPlatforms &&
+                  propertyPlatforms?.map(
+                    (platform: { ical_url: string; platform: string }) => {
+                      return (
+                        <SelectItem
+                          className='w-[16rem]'
+                          key={platform.ical_url}
+                          value={`${platform.platform}`}>
+                          {platform.platform}
+                        </SelectItem>
+                      );
+                    }
+                  )}
               </SelectContent>
             </Select>
 

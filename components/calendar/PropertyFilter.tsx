@@ -2,10 +2,8 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-// import { toast } from 'sonner';
 import { z } from 'zod';
 
-//// Removed unused import Button
 import {
   Form,
   FormControl,
@@ -22,70 +20,43 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-// import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { use, useMemo, useTransition } from 'react';
-import { parseAsString, useQueryState } from 'nuqs';
-
-const FormSchema = z.object({
-  propertyId: z.string({
-    required_error: 'Please select property to display.',
-  }),
-});
-
-type PropertyData = {
-  propertyId: string;
-  propertyName: string;
+type PropertyTypes = {
+  propertiesData: {
+    id: string;
+    title: string;
+    ical_urls: {
+      ical_url: string;
+      platform: string;
+    }[];
+  }[];
+  handlePropertyFilter: (value: string) => void;
+  searchParamProperty: string;
 };
 
+const FormSchema = z.object({
+  property: z.string({
+    required_error: 'Please select booking platform to display.',
+  }),
+});
 export function PropertyFilter({
-  propertyData,
-}: {
-  propertyData: Promise<Array<PropertyData>>;
-}) {
-  const properties = use(propertyData);
-
-  const [isPending, startTransition] = useTransition();
-
+  propertiesData,
+  handlePropertyFilter,
+}: PropertyTypes) {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
-
-  const [property, setProperty] = useQueryState(
-    'property',
-    parseAsString.withDefault('').withOptions({
-      history: 'push',
-      shallow: false,
-      startTransition,
-    })
-  );
-
-  const x = useMemo(() => {
-    setProperty(properties[0].propertyId);
-  }, []);
-  console.log('Unique Properties: ', properties);
-  console.log('Property: ', property);
-  console.log('Is Pending: ', isPending);
-  // console.log('UseMemo return: ', x);
-  // console.log('Search Params Platform: ', platform);
-
-  async function handleSelectProperty(value: string) {
-    setProperty(value);
-    console.log('Value: ', value);
-    form.reset();
-  }
-
   return (
     <Form {...form}>
       <FormField
         control={form.control}
-        name='propertyId'
+        name='property'
         render={({ field }) => (
           <FormItem className='flex items-center gap-4'>
             <FormLabel>Property</FormLabel>
             <Select
-              defaultValue={properties[0].propertyId}
+              defaultValue={propertiesData[0].id}
               onValueChange={(selectedValue) => {
-                handleSelectProperty(selectedValue);
+                handlePropertyFilter(selectedValue);
               }}
               {...field}>
               <FormControl>
@@ -94,18 +65,16 @@ export function PropertyFilter({
                 </SelectTrigger>
               </FormControl>
               <SelectContent className='w-[16rem]'>
-                {properties?.map(
-                  (property: { propertyId: string; propertyName: string }) => {
-                    return (
-                      <SelectItem
-                        className='w-[16rem]'
-                        key={property.propertyId}
-                        value={`${property.propertyId}`}>
-                        {property.propertyName}
-                      </SelectItem>
-                    );
-                  }
-                )}
+                {propertiesData?.map((property) => {
+                  return (
+                    <SelectItem
+                      className='w-[16rem]'
+                      key={property.id}
+                      value={`${property.id}`}>
+                      {property.title}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
 
