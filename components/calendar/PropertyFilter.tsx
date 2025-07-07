@@ -22,59 +22,90 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-import { useSearchParams } from 'next/navigation';
-import { CalendarData } from '@/types/bookingTypes';
-import { use } from 'react';
+// import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { use, useMemo, useTransition } from 'react';
+import { parseAsString, useQueryState } from 'nuqs';
 
 const FormSchema = z.object({
-  email: z
-    .string({
-      required_error: 'Please select an email to display.',
-    })
-    .email(),
+  propertyId: z.string({
+    required_error: 'Please select property to display.',
+  }),
 });
 
+type PropertyData = {
+  propertyId: string;
+  propertyName: string;
+};
+
 export function PropertyFilter({
-  bookingData,
+  propertyData,
 }: {
-  bookingData: Promise<CalendarData>;
+  propertyData: Promise<Array<PropertyData>>;
 }) {
-  const data = use(bookingData);
-  console.log('Booking Data Filter Property: ', data);
-  const serachParams = useSearchParams();
+  const properties = use(propertyData);
+
+  const [isPending, startTransition] = useTransition();
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
 
-  async function handleSelectChange(value: string) {
-    const params = new URLSearchParams(serachParams);
+  const [property, setProperty] = useQueryState(
+    'property',
+    parseAsString.withDefault('').withOptions({
+      history: 'push',
+      shallow: false,
+      startTransition,
+    })
+  );
 
-    params.append('property', value);
+  const x = useMemo(() => {
+    setProperty(properties[0].propertyId);
+  }, []);
+  console.log('Unique Properties: ', properties);
+  console.log('Property: ', property);
+  console.log('Is Pending: ', isPending);
+  // console.log('UseMemo return: ', x);
+  // console.log('Search Params Platform: ', platform);
+
+  async function handleSelectProperty(value: string) {
+    setProperty(value);
+    console.log('Value: ', value);
+    form.reset();
   }
 
   return (
     <Form {...form}>
       <FormField
         control={form.control}
-        name='email'
+        name='propertyId'
         render={({ field }) => (
           <FormItem className='flex items-center gap-4'>
             <FormLabel>Property</FormLabel>
             <Select
+              defaultValue={properties[0].propertyId}
               onValueChange={(selectedValue) => {
-                field.onChange(selectedValue);
-                handleSelectChange(selectedValue);
+                handleSelectProperty(selectedValue);
               }}
               {...field}>
               <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder='Select a verified email to display' />
+                <SelectTrigger className='w-[16rem]'>
+                  <SelectValue placeholder='Select property' />
                 </SelectTrigger>
               </FormControl>
-              <SelectContent>
-                <SelectItem value='m@example.com'>m@example.com</SelectItem>
-                <SelectItem value='m@google.com'>m@google.com</SelectItem>
-                <SelectItem value='m@support.com'>m@support.com</SelectItem>
+              <SelectContent className='w-[16rem]'>
+                {properties?.map(
+                  (property: { propertyId: string; propertyName: string }) => {
+                    return (
+                      <SelectItem
+                        className='w-[16rem]'
+                        key={property.propertyId}
+                        value={`${property.propertyId}`}>
+                        {property.propertyName}
+                      </SelectItem>
+                    );
+                  }
+                )}
               </SelectContent>
             </Select>
 

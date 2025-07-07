@@ -9,6 +9,8 @@ export interface BookingEvent {
   guest_name?: string;
   created_at: string;
   updated_at: string;
+  properties: { id: string; title: string; owner_id: string };
+  property_icals: { platform: string };
 }
 
 export interface CalendarEvent {

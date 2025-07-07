@@ -45,7 +45,7 @@ export default function EnhancedCalendar({
   );
 
   const data = use(bookingData);
-  console.log('Booking Data on the Client: ', data);
+  // console.log('Booking Data on the Client: ', data);
 
   // Sync all properties
 
@@ -97,7 +97,7 @@ export default function EnhancedCalendar({
       {/* Header with controls */}
 
       {/* Conflicts Alert - To be removed in new separate component (Or better fully redesinged) */}
-      {data &&
+      {/* {data &&
         'events' in data &&
         data.conflicts &&
         data.conflicts.length > 0 && (
@@ -125,7 +125,7 @@ export default function EnhancedCalendar({
               ))}
             </div>
           </div>
-        )}
+        )} */}
 
       {/* Calendar */}
       <div
