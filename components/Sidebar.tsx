@@ -53,11 +53,11 @@ export default function Sidebar() {
         pathname.split('/')[pathname.split('/').length - 1] === 'bookings',
     },
     {
-      tag: '#',
-      label: 'Orders',
+      tag: 'tasks',
+      label: 'Tasks',
       icon: <ShoppingCart size={18} />,
       badge: 2,
-      active: pathname.split('/')[pathname.split('/').length - 1] === 'orders',
+      active: pathname.split('/')[pathname.split('/').length - 1] === 'tasks',
     },
 
     {

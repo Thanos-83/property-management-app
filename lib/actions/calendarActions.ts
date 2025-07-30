@@ -1,3 +1,5 @@
+'use server';
+
 import { CalendarData, CalendarEvent } from '@/types/bookingTypes';
 import { createClient } from '../utils/supabase/server';
 import detectBookingConflicts from '../utils/bookings/detectBookingConflicts';

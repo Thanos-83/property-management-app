@@ -11,8 +11,9 @@ import { User } from 'lucide-react';
 
 import { createClient } from '@/lib/utils/supabase/client';
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { Button } from '../ui/button';
+import { redirect } from 'next/navigation';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 export default function UserDropdownMenu() {
   const [userAvatar, setUserAvatar] = useState('');
@@ -20,8 +21,8 @@ export default function UserDropdownMenu() {
 
   const handleSignOut = async () => {
     const result = await supabase.auth.signOut();
-
-    console.log('Sign out result: ', result);
+    console.log('Result signing out: ', result);
+    redirect('/');
   };
 
   useEffect(() => {
@@ -38,17 +39,21 @@ export default function UserDropdownMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className='ml-4 rounded-full w-8 h-8 p-0  text-white focus:outline-primary'>
+        <Button variant='ghost' className='ml-4 h-8 w-8'>
           {!userAvatar ? (
             <User />
           ) : (
-            <Image
-              className='object-fill w-full border border-accent overflow-hidden rounded-full '
-              src={userAvatar}
-              width={36}
-              height={36}
-              alt='user avatar'
-            />
+            // <Image
+            //   className='object-fill w-full border border-accent overflow-hidden rounded-full '
+            //   src={userAvatar}
+            //   width={36}
+            //   height={36}
+            //   alt='user avatar'
+            // />
+            <Avatar className='h-8 w-8 rounded-lg border border-r-gray-400'>
+              <AvatarImage src={userAvatar} alt='user avatar' />
+              <AvatarFallback className='rounded-lg'>CN</AvatarFallback>
+            </Avatar>
           )}
         </Button>
       </DropdownMenuTrigger>

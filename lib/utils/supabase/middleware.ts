@@ -39,8 +39,11 @@ export async function updateSession(request: NextRequest) {
 
   const {
     data: { user },
+    // error: userError,
   } = await supabase.auth.getUser();
 
+  // console.log('User  in supabase middleware: ', user);
+  // console.log('Error in supabase middleware: ', userError);
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&

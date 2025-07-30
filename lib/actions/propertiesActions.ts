@@ -30,7 +30,8 @@ export const addPropertyAction = async (propertyData: PropertySchemaType) => {
     };
   }
 
-  const { title, description, location, rooms, ical_url } = parsedData.data;
+  const { title, description, location, rooms, platform, ical_url } =
+    parsedData.data;
 
   // Insert into database
   const { data, error } = await supabase
@@ -54,7 +55,7 @@ export const addPropertyAction = async (propertyData: PropertySchemaType) => {
     .from('property_icals')
     .insert({
       property_id: data.id,
-      platform: 'Airbnb',
+      platform,
       ical_url,
     })
     .select()
@@ -66,7 +67,6 @@ export const addPropertyAction = async (propertyData: PropertySchemaType) => {
   }
 
   revalidateTag('properties');
-  // revalidatePath('/dashboard/listings', 'page');
   return { property: data, status: 201 };
 };
 

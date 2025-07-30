@@ -1,22 +1,7 @@
-// import { createClient } from '@/lib/utils/supabase/server';
-// import { NextResponse } from 'next/server';
-
-// export async function GET(request: Request) {
-//   const requestUrl = new URL(request.url);
-//   const code = requestUrl.searchParams.get('code');
-
-//   if (code) {
-//     const supabase = createClient();
-//     (await supabase).auth.exchangeCodeForSession(code);
-//   }
-
-//   // URL to redirect to after sign in process completes
-//   return NextResponse.redirect(requestUrl.origin);
-// }
-
 import { NextResponse } from 'next/server';
 // The client you created from the Server-Side Auth instructions
 import { createClient } from '@/lib/utils/supabase/server';
+// import { redirect } from 'next/navigation';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -32,6 +17,38 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // create a new profile, when signing up.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      // console.log('Origin URL: ', origin);
+
+      console.log('User in the in auth->callback route: ', user);
+
+      const userProfile = await supabase
+        .from('profiles')
+        .select()
+        .eq('id', user?.id)
+        .single();
+
+      console.log('User profile in auth->callback route: ', userProfile);
+      if (!userProfile.data) {
+        if (user) {
+          const newUser = {
+            id: user.id,
+            email: user.user_metadata.email,
+            role_id: 6,
+            name: user.user_metadata.full_name,
+          };
+          const response = await supabase.from('profiles').insert([newUser]);
+          console.log(
+            'Response creating new user in auth->callback: ',
+            response
+          );
+          if (!response.error) return NextResponse.redirect(`${origin}/login`);
+        }
+      }
+      //
       const forwardedHost = request.headers.get('x-forwarded-host'); // original origin before load balancer
       const isLocalEnv = process.env.NODE_ENV === 'development';
       if (isLocalEnv) {

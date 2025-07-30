@@ -6,6 +6,9 @@ export const propertySchema = z.object({
   description: z.string().optional(),
   location: z.string().min(2, 'Η τοποθεσία είναι υποχρεωτική'),
   rooms: z.number().min(1, 'Πρέπει να υπάρχει τουλάχιστον 1 δωμάτιο'),
+  platform: z.enum(['Airbnb', 'Booking', 'Vrbo', 'Expedia'], {
+    errorMap: () => ({ message: 'Please select a platform' }),
+  }),
   ical_url: z.string().url('Δώσε έγκυρο URL').optional(),
 });
 export type PropertySchemaType = z.infer<typeof propertySchema>;
