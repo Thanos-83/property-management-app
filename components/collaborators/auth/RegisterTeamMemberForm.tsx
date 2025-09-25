@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, EyeIcon, EyeOffIcon, Loader } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, Loader } from 'lucide-react';
 import Link from 'next/link';
-import { signIn } from '@/lib/actions/authActions';
+import { signInWithProvider, signUp } from '@/lib/actions/authActions';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { authSignInSchema, AuthSigninSchemaType } from '@/lib/schemas/auth';
+import { authSignUpSchema, AuthSignupSchemaType } from '@/lib/schemas/auth';
 
 import {
   Form,
@@ -19,29 +19,25 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { toast } from 'sonner';
-import { protocol, rootDomain } from '@/lib/utils';
-import { createClient } from '@/lib/utils/supabase/client';
-import { Provider } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation';
 
-export default function LoginForm() {
+export default function RegisterTeamMemberForm() {
   const [isVisible, setIsVisible] = useState<boolean>(false);
-  const router = useRouter();
 
   const toggleVisibility = () => setIsVisible((prevState) => !prevState);
 
-  const form = useForm<AuthSigninSchemaType>({
-    resolver: zodResolver(authSignInSchema),
+  const form = useForm<AuthSignupSchemaType>({
+    resolver: zodResolver(authSignUpSchema),
     defaultValues: {
+      fullName: '',
       email: '',
       password: '',
     },
   });
 
-  const onSubmit = async (formData: AuthSigninSchemaType) => {
-    const response = await signIn(formData);
+  const onSubmit = async (formData: AuthSignupSchemaType) => {
+    const response = await signUp(formData);
 
-    console.log('Response: ', response);
+    console.log('Response: ', response?.error);
     if (!response?.success && typeof response?.error === 'object') {
       response?.error.map((err) => toast.error(err?.message));
     } else if (!response?.success) {
@@ -50,59 +46,31 @@ export default function LoginForm() {
     // form.reset();
   };
 
-  const handleSignInWithProvider = async (provider: Provider) => {
-    const supabase = createClient();
-    // 2. Sign in with Google
-    const { error, data } = await supabase.auth.signInWithOAuth({
-      provider: provider,
-      options: {
-        redirectTo: `${protocol}://app.myapp.site:3000/auth/callback`,
-      },
-    });
-    if (error) {
-      console.log('Client google Error: ', error);
-      return; // Return early if there's an error
-    }
-
-    // Check if data.url exists before redirecting
-    if (data?.url) {
-      console.log('Redirecting to Google OAuth:', data.url);
-
-      return router.push(data.url);
-    }
-
-    // Handle the case where data.url is null or undefined
-    console.log('No URL returned from OAuth provider');
-    // Optionally show a toast error message here
-  };
-
   return (
     <div className='mx-auto w-[90%] max-w-[32rem]'>
-      <Link
-        href={`${protocol}://${rootDomain}`}
-        className='flex  items-center mb-4'>
-        <ArrowLeft className='w-8 h-4' />
-        <span>Home</span>
-      </Link>
       <div className='bg-muted max-w-lg m-auto h-fit w-full overflow-hidden rounded-[calc(var(--radius)+.125rem)] border border-border shadow-md shadow-zinc-950/5 dark:[--color-muted:var(--color-zinc-900)]'>
-        <div className='bg-popover -m-[2px] rounded-b-[calc(var(--radius)+.125rem)] border-b border-b-border p-6'>
+        <div className='bg-popover -m-[2px] rounded-b-[calc(var(--radius)+.5rem)] border-b border-b-border p-6'>
           <div className='text-center'>
-            <Link href='/' aria-label='go home' className='mx-auto block w-fit'>
-              {/* <LogoIcon /> */}
-              Logo
-            </Link>
-            <h1 className='text-title mb-1 mt-4 text-xl font-semibold'>
-              Login to your Tailark Account
-            </h1>
-            <p className='text-sm'>
-              Welcome! Login to your account to get started
-            </p>
+            <h1 className='text-lg'>Create your account</h1>
           </div>
 
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
               className='mt-6 space-y-6'>
+              <FormField
+                control={form.control}
+                name='fullName'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className='block text-sm'>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder='Full Name' {...field} />
+                    </FormControl>
+                    <FormMessage className='text-red-600' />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name='email'
@@ -121,14 +89,7 @@ export default function LoginForm() {
                 name='password'
                 render={({ field }) => (
                   <FormItem>
-                    <div className='flex items-center justify-between'>
-                      <FormLabel>Password</FormLabel>
-                      <Link
-                        href='/forgot-password'
-                        className='ml-auto text-xs underline-offset-4 hover:underline'>
-                        Forgot your password?
-                      </Link>
-                    </div>
+                    <FormLabel>Password</FormLabel>
                     <div className='relative'>
                       <FormControl>
                         <Input
@@ -170,7 +131,7 @@ export default function LoginForm() {
                       : 'hidden'
                   }`}
                 />
-                Sign In
+                Sign Up
               </Button>
             </form>
           </Form>
@@ -184,11 +145,7 @@ export default function LoginForm() {
 
           <div className='grid grid-cols-2 gap-3'>
             <Button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleSignInWithProvider('google');
-              }}
+              onClick={() => signInWithProvider('google')}
               type='button'
               variant='outline'>
               <svg
@@ -233,9 +190,9 @@ export default function LoginForm() {
 
         <div className='p-3'>
           <p className='text-accent-foreground text-center text-sm'>
-            Don&apos;t have an account ?
+            Already have an account ?
             <Button asChild variant='link' className='px-2'>
-              <Link href='/auth/register'>Sign Up</Link>
+              <Link href='/auth/login'>Sign In</Link>
             </Button>
           </p>
         </div>

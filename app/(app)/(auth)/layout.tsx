@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import '../globals.css';
+import '../../globals.css';
 import { createClient } from '@/lib/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import { Toaster } from 'sonner';

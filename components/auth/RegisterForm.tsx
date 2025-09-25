@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { toast } from 'sonner';
+import { protocol, rootDomain } from '@/lib/utils';
 
 export default function RegisterForm() {
   const [isVisible, setIsVisible] = useState<boolean>(false);
@@ -48,7 +49,9 @@ export default function RegisterForm() {
 
   return (
     <div className='mx-auto w-[90%] max-w-[32rem]'>
-      <Link href='/' className='flex  items-center mb-4'>
+      <Link
+        href={`${protocol}://${rootDomain}`}
+        className='flex  items-center mb-4'>
         <ArrowLeft className='w-8 h-4' />
         <span>Home</span>
       </Link>
@@ -203,7 +206,7 @@ export default function RegisterForm() {
           <p className='text-accent-foreground text-center text-sm'>
             Already have an account ?
             <Button asChild variant='link' className='px-2'>
-              <Link href='/login'>Sign In</Link>
+              <Link href='/auth/login'>Sign In</Link>
             </Button>
           </p>
         </div>

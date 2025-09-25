@@ -14,8 +14,8 @@ import { createClient } from '@/lib/utils/supabase/client';
 import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
 
-export default function PricingCard({ productData }) {
-  console.log('Stripe product data from supabase: ', productData);
+export default function PricingCard({ productData }: { productData: any }) {
+  // console.log('Stripe product data from supabase: ', productData);
   const supabase = createClient();
   const [user, setUser] = useState(false);
   useEffect(() => {
@@ -23,7 +23,7 @@ export default function PricingCard({ productData }) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      console.log('User Data: ', user);
+      // console.log('User Data: ', user);
       if (user) {
         setUser(true);
       } else {
@@ -34,13 +34,13 @@ export default function PricingCard({ productData }) {
     fetchUser();
   });
 
-  console.log('user: ', user);
+  // console.log('User in pricing card: ', user);
   const handleStripeSession = async (priceId: string) => {
     if (user) {
       const response = await createStripeSession(priceId);
       console.log('Response from server action - Stripe session: ', response);
     } else {
-      return redirect(`/login?priceID=${priceId}`);
+      return redirect(`/auth/login?priceID=${priceId}`);
     }
   };
   return (
@@ -76,7 +76,7 @@ export default function PricingCard({ productData }) {
             {Object.values(productData.metadata).map((item, index) => (
               <li key={index} className='flex items-center gap-2'>
                 <Check className='size-3' />
-                {item}
+                {String(item)}
               </li>
             ))}
           </ul>

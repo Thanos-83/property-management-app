@@ -138,7 +138,11 @@ export async function signInWithProvider(provider: Provider) {
   const headersList = await headers();
   const origin = headersList.get('origin');
   // console.log('headers: ', [...headersList.entries()]);
-
+  const redirectUrl = `${origin}/auth/callback`;
+  console.log('🔍 Full redirect URL being sent:', redirectUrl);
+  console.log('🔍 Origin header value:', origin);
+  console.log('🔍 Host header value:', headersList.get('host'));
+  // console.log('ORIGIN in Google Action: ', origin);
   // 1. Create supabase client
   const supabase = await createClient();
 
@@ -149,11 +153,17 @@ export async function signInWithProvider(provider: Provider) {
       redirectTo: `${origin}/auth/callback`,
     },
   });
-
+  console.log('Error signing in with Goggle: ', error);
   if (error) {
     console.log('Error signing in with Google provider: ', error);
   } else {
     console.log('Data signing up with Google: ', data);
+    // ADD THESE LOGS HERE:
+    console.log(
+      'Redirect URL being sent to Google:',
+      `${origin}/auth/callback`
+    );
+    console.log('OAuth data URL:', data.url);
     return redirect(data.url);
   }
 }

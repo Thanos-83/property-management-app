@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/utils/supabase/server';
 
 export async function GET(request: NextRequest) {
+  console.log('IAM IN THE auth/confirm ROUTE!!!!!!!!!!!!!!!!!!!!!!!!!!');
+
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get('token_hash');
   const type = searchParams.get('type') as EmailOtpType | null;

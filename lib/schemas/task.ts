@@ -14,3 +14,18 @@ export const taskSchema = z.object({
 });
 
 export type TaskSchemaType = z.infer<typeof taskSchema>;
+
+export const taskMemberSchema = z.object({
+  user_id: z.string().optional(),
+  email: z.string().min(1, 'Email is required'),
+  first_name: z.string().min(1, 'First name is required').optional(),
+  last_name: z.string().min(1, 'Last name is required').optional(),
+  phone: z.string().min(10, 'Mobile phone is required').optional(),
+  has_portal_access: z.boolean().optional(),
+  status: z.string().optional(),
+  member_role: z.string(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+export type TaskMemberSchemaType = z.infer<typeof taskMemberSchema>;

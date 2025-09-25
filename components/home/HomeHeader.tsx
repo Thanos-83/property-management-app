@@ -129,12 +129,12 @@ const HeaderHome = ({
     },
     {
       title: 'Blog',
-      url: '#',
+      url: '/blog',
     },
   ],
   auth = {
-    login: { title: 'Login', url: '/login' },
-    signup: { title: 'Sign up', url: '/register' },
+    login: { title: 'Login', url: '/auth/login' },
+    signup: { title: 'Sign up', url: '/auth/register' },
   },
 }: Navbar1Props) => {
   return (
@@ -285,7 +285,7 @@ const renderMobileMenuItem = (item: MenuItem) => {
 
 const SubMenuLink = ({ item }: { item: MenuItem }) => {
   return (
-    <a
+    <Link
       className='flex flex-row gap-4 rounded-md p-3 leading-none no-underline transition-colors outline-none select-none hover:bg-muted hover:text-accent-foreground'
       href={item.url}>
       <div className='text-foreground'>{item.icon}</div>
@@ -297,7 +297,7 @@ const SubMenuLink = ({ item }: { item: MenuItem }) => {
           </p>
         )}
       </div>
-    </a>
+    </Link>
   );
 };
 

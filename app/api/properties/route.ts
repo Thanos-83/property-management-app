@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { createApiClient } from '@/lib/utils/supabase/api';
 import { propertySchema } from '@/lib/schemas/property';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidateTag } from 'next/cache';
 import { testApiAuth } from '@/lib/utils/test-auth';
 
 export async function POST(req: Request) {
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   }
 
   revalidateTag('properties');
-  revalidatePath('/dashboard/listings', 'page');
+  // revalidatePath('/dashboard/listings', 'page');
   return NextResponse.json({ property: data }, { status: 201 });
 }
 

@@ -1,6 +1,7 @@
 import Pricing from '@/components/home/Pricing';
 import Link from 'next/link';
 import React from 'react';
+import { protocol, rootDomain } from '@/lib/utils';
 export default async function HomePage() {
   return (
     <div>
@@ -8,10 +9,11 @@ export default async function HomePage() {
         <h1 className='text-4xl font-bold text-center mt-20'>
           Καλώς ήρθες στην αρχική σελίδα!
         </h1>
-        <Link href='/dashboard' className='mt-6  text-center'>
+        <Link
+          href={`${protocol}://app.${rootDomain}`}
+          className='mt-6  text-center'>
           Dashboard
         </Link>
-   
 
         <div className='mt-8'>
           <div className='mx-auto max-w-2xl space-y-6 text-center'>

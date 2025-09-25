@@ -14,11 +14,15 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
-            // console.log('Cookies to SET 1: ', cookiesToSet);
-
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
+            cookiesToSet.forEach(({ name, value, options }) => {
+              // Set domain to share across subdomains
+              const cookieOptions = {
+                ...options,
+                domain: '.myapp.site', // For development
+                // domain: '.myapp.com', // For production
+              };
+              cookieStore.set(name, value, cookieOptions);
+            });
           } catch (error) {
             console.log('Error in serverClient Supabase: ', error);
             // The `setAll` method was called from a Server Component.

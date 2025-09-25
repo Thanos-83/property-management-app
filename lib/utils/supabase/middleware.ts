@@ -15,17 +15,26 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set({ name, value, ...options })
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const cookieOptions = {
+              ...options,
+              domain: '.myapp.site', // For development
+              // domain: '.myapp.com', // For production
+            };
+            request.cookies.set({ name, value, ...cookieOptions });
+          });
           supabaseResponse = NextResponse.next({
             request: {
               headers: request.headers,
             },
           });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const cookieOptions = {
+              ...options,
+              domain: '.myapp.site', // For development
+            };
+            supabaseResponse.cookies.set(name, value, cookieOptions);
+          });
         },
       },
     }
@@ -42,18 +51,20 @@ export async function updateSession(request: NextRequest) {
     // error: userError,
   } = await supabase.auth.getUser();
 
-  // console.log('User  in supabase middleware: ', user);
-  // console.log('Error in supabase middleware: ', userError);
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
+  console.log('👤 User in updateSession:', user?.email || 'No user');
+
+  // if (
+  //   !user &&
+  //   request.nextUrl.pathname.startsWith('/dashboard')
+  //   // !request.nextUrl.pathname.startsWith('/auth')
+  // ) {
+  //   // no user, potentially respond by redirecting the user to the login page
+  //   const url = request.nextUrl.clone();
+  //   // console.log('URL here 1: ', url);
+
+  //   url.pathname = '/login';
+  //   return NextResponse.redirect(url);
+  // }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   // If you're creating a new response object with NextResponse.next() make sure to:

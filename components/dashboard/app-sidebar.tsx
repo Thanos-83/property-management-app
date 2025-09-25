@@ -7,13 +7,13 @@ import {
   Command,
   Frame,
   LayoutDashboard,
-  LifeBuoy,
   Map,
   PieChart,
   Send,
   Settings2,
   SquareTerminal,
   CalendarRange,
+  HouseIcon,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/dashboard/nav-main';
@@ -127,8 +127,8 @@ const data = {
   navSecondary: [
     {
       title: 'Home',
-      url: '/',
-      icon: LifeBuoy,
+      url: `${process.env.NEXT_PUBLIC_URL}`,
+      icon: HouseIcon,
     },
     {
       title: 'Feedback',
