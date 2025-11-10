@@ -1,5 +1,6 @@
 import RegisterTeamMemberForm from '@/components/collaborators/auth/RegisterTeamMemberForm';
-import { updateMemberInvitationAction } from '@/lib/actions/taskActions';
+import { updateMemberInvitationAction } from '@/lib/actions/taskMemberActions';
+import { redirect } from 'next/navigation';
 
 async function MemberRegisterPage({
   searchParams,
@@ -25,7 +26,9 @@ async function MemberRegisterPage({
 
     return (
       <div>
-        {response?.status === 2 ? (
+        {response?.status === 4 ? (
+          redirect('/login')
+        ) : response?.status === 2 ? (
           <div className='bg-amber-300 h-screen grid place-content-center'>
             <div>
               <h1 className='text-2xl font-bold text-center'>
@@ -49,15 +52,12 @@ async function MemberRegisterPage({
             </div>
           </div>
         ) : (
-          <div className='bg-slate-100 h-screen grid place-content-center'>
+          <div className='bg-slate-100'>
             <div>
               <h1 className='text-2xl font-bold text-center'>
                 Main Template #{response?.status}
               </h1>
-              <h3 className='text-lg font-medium'>
-                This is the template for the case where the invited member
-                finally creates their account!!!!!!
-              </h3>
+
               <RegisterTeamMemberForm />
             </div>
           </div>

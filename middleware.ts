@@ -56,27 +56,60 @@ export async function middleware(request: NextRequest) {
   console.log('Url:', request.url);
 
   const sessionResponse = await updateSession(request);
-  console.log('UpdateSession status:', sessionResponse.status);
-
   // Get user AFTER updateSession
   const supabase = await createClient();
   const {
     data: { user: userInfo },
   } = await supabase.auth.getUser();
-  console.log('User AFTER updateSession:', userInfo?.email || 'No user');
-  console.log('User in Middleware function:', userInfo?.email || 'No user');
+  // console.log(
+  //   'User Metadata AFTER updateSession:',
+  //   userInfo?.user_metadata || 'No user'
+  // );
+
+  // console.log(
+  //   'App Metadata AFTER updateSession:',
+  //   userInfo?.app_metadata || 'No user'
+  // );
 
   if (!subdomain) {
-    if (pathname === '/') {
-      return NextResponse.rewrite(new URL('/', request.url));
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/member')) {
+      return NextResponse.redirect(new URL('/', request.url));
     } else {
+      if (pathname.startsWith('/auth')) {
+        return NextResponse.redirect(
+          new URL('http://app.myapp.site:3000/auth/login', request.url)
+        );
+      }
       return NextResponse.next();
     }
   }
-  // Replace your current app subdomain logic with this:
+
   if (subdomain === 'app') {
-    if (userInfo) {
-      console.log('Iam here : ', userInfo.email);
+    if (userInfo && userInfo.app_metadata.role === 'admin') {
+      // Admin is logged in
+      if (
+        pathname === '/' ||
+        pathname === '/login' ||
+        pathname === '/register'
+      ) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+      return NextResponse.next();
+    } else {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      console.log('Error: ', error);
+      if (!pathname.startsWith('/auth')) {
+        return NextResponse.redirect(new URL('/auth/login', request.url));
+      }
+
+      return NextResponse.next();
+    }
+  }
+
+  // Add this AFTER the app subdomain logic:
+  if (subdomain === 'collaborators') {
+    console.log('User info in collaborators tenant: ', userInfo?.app_metadata);
+    if (userInfo && userInfo.app_metadata.role === 'member') {
       // Keep the original pathname - don't force it to /dashboard
       if (
         pathname === '/' ||
@@ -84,34 +117,19 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith('/register')
       ) {
         // Only redirect root to dashboard
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        return NextResponse.redirect(new URL('/member/tasks', request.url));
       }
       // For all other paths, let them through as-is
       return NextResponse.next();
-    } else if (!pathname.startsWith('/auth/')) {
-      // Only redirect if not already on login page
-      return NextResponse.redirect(new URL('/auth/login', request.url));
-    }
-  }
-
-  // Add this AFTER the app subdomain logic:
-  if (subdomain === 'collaborators') {
-    if (
-      !pathname.startsWith('/member') &&
-      pathname !== '/login' &&
-      pathname !== '/register'
-    ) {
-      return NextResponse.redirect(new URL(`/login`, request.url));
-    }
-    if (pathname.startsWith('/register')) {
-      return NextResponse.rewrite(
-        new URL(`/register${request.nextUrl.search}`, request.url)
-      );
+    } else {
+      // Not authenticated or not a member - REDIRECT to login
+      if (!pathname.startsWith('/login') && !pathname.startsWith('/register')) {
+        return NextResponse.redirect(new URL('/login', request.url)); // Changed to redirect
+      }
+      return NextResponse.next();
     }
   }
   return sessionResponse;
-  // return await updateSession(request);
-  // return NextResponse.next();
 }
 
 export const config = {

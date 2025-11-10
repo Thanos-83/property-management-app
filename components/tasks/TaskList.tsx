@@ -24,6 +24,7 @@ export default function TaskList({
     async function loadTasks() {
       setLoading(true);
       const fetchedTasks = await fetchTasksAction();
+      console.log('Tasks: ', fetchedTasks);
       if (!('error' in fetchedTasks)) {
         setTasks(fetchedTasks);
       }

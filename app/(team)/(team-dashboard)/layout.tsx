@@ -1,5 +1,6 @@
 import React from 'react';
 import '../../globals.css';
+import { Toaster } from '@/components/ui/sonner';
 
 export default async function TeamLayout({
   children,
@@ -14,6 +15,7 @@ export default async function TeamLayout({
             <main className='team-main-content'>{children}</main>
           </div>
         </div>
+        <Toaster richColors position='top-right' />
       </body>
     </html>
   );

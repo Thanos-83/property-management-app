@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, EyeIcon, EyeOffIcon, Loader } from 'lucide-react';
 import Link from 'next/link';
-import { signIn } from '@/lib/actions/authActions';
+import { signIn, signInWithProvider } from '@/lib/actions/authActions';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { authSignInSchema, AuthSigninSchemaType } from '@/lib/schemas/auth';
@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/form';
 import { toast } from 'sonner';
 import { protocol, rootDomain } from '@/lib/utils';
-import { createClient } from '@/lib/utils/supabase/client';
 import { Provider } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
@@ -41,39 +40,22 @@ export default function LoginForm() {
   const onSubmit = async (formData: AuthSigninSchemaType) => {
     const response = await signIn(formData);
 
-    console.log('Response: ', response);
     if (!response?.success && typeof response?.error === 'object') {
       response?.error.map((err) => toast.error(err?.message));
     } else if (!response?.success) {
       toast.error(response?.error as string);
     }
-    // form.reset();
+    form.reset();
   };
 
   const handleSignInWithProvider = async (provider: Provider) => {
-    const supabase = createClient();
-    // 2. Sign in with Google
-    const { error, data } = await supabase.auth.signInWithOAuth({
-      provider: provider,
-      options: {
-        redirectTo: `${protocol}://app.myapp.site:3000/auth/callback`,
-      },
-    });
-    if (error) {
-      console.log('Client google Error: ', error);
-      return; // Return early if there's an error
+    const response = await signInWithProvider(provider);
+
+    if (response.error) {
+      toast.error(response.message);
+    } else {
+      router.push(response.data?.redirectUrl);
     }
-
-    // Check if data.url exists before redirecting
-    if (data?.url) {
-      console.log('Redirecting to Google OAuth:', data.url);
-
-      return router.push(data.url);
-    }
-
-    // Handle the case where data.url is null or undefined
-    console.log('No URL returned from OAuth provider');
-    // Optionally show a toast error message here
   };
 
   return (

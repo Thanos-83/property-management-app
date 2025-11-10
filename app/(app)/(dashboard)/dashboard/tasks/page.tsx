@@ -1,30 +1,28 @@
-'use client';
-
-import React, { useState } from 'react';
-import TaskList from '@/components/tasks/TaskList';
 import AddTaskModal from '@/components/tasks/AddTaskModal';
+import TasksTable from '@/components/tasks/TasksTable';
+// import TestTable from '@/components/tasks/TestTable';
+import { fetchTasksAction } from '@/lib/actions/taskActions';
 
-function TasksPage() {
-  // You can modify this to pass a default or selected propertyId as needed
-  const defaultPropertyId = '';
-
-  const [taskAddedCount, setTaskAddedCount] = useState(0);
-
-  const handleTaskAdded = () => {
-    setTaskAddedCount((count) => count + 1);
-  };
+async function TasksPage() {
+  const tasksResult = await fetchTasksAction();
+  // Check if the result is an array (successful fetch)
+  const tasks = Array.isArray(tasksResult) ? tasksResult : [];
+  console.log('tasks: ', tasks?.length);
 
   return (
     <div className='group flex-1 overflow-y-auto p-4'>
       <div className='flex items-center justify-between'>
         <h1 className='text-2xl font-bold mb-4'>Tasks</h1>
-
-        <AddTaskModal onSuccess={handleTaskAdded} />
+        <AddTaskModal />
       </div>
-      <TaskList
-        propertyId={defaultPropertyId}
-        refreshTrigger={taskAddedCount}
-      />
+      <div className='mt-6'>
+        <TasksTable tableTasks={tasks} />
+      </div>
+      {!Array.isArray(tasksResult) && tasksResult.error && (
+        <div className='mt-4 p-4 bg-red-100 text-red-800 rounded-md'>
+          Error loading tasks: {tasksResult.error}
+        </div>
+      )}
     </div>
   );
 }

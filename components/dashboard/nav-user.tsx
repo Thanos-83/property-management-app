@@ -28,18 +28,44 @@ import {
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import { signOut } from '@/lib/actions/authActions';
+import { createClient } from '@/lib/utils/supabase/client';
+import { useEffect, useState } from 'react';
 
-export function NavUser({
-  user,
-}: {
-  user: {
-    name: string;
-    email: string;
-    avatar: string;
-  };
-}) {
+type UserType = {
+  name: string;
+  email: string;
+  avatar: string;
+};
+
+export function NavUser() {
   const { isMobile } = useSidebar();
+  const supabase = createClient();
+  const [userData, setUserData] = useState<UserType>({
+    name: '',
+    email: '',
+    avatar: '',
+  });
 
+  useEffect(() => {
+    const getUserData = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUserData((prev: UserType): UserType => {
+        return {
+          ...prev,
+          name: user?.user_metadata.full_name,
+          email: user?.email ? user?.email : '',
+          avatar: user?.user_metadata.avatar_url
+            ? user?.user_metadata.avatar_url
+            : '',
+        };
+      });
+      return;
+    };
+
+    getUserData();
+  }, [supabase.auth]);
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -49,12 +75,12 @@ export function NavUser({
               size='lg'
               className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'>
               <Avatar className='h-8 w-8 rounded-lg'>
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src={userData.avatar} alt={userData.name} />
                 <AvatarFallback className='rounded-lg'>CN</AvatarFallback>
               </Avatar>
               <div className='grid flex-1 text-left text-sm leading-tight'>
-                <span className='truncate font-medium'>{user.name}</span>
-                <span className='truncate text-xs'>{user.email}</span>
+                <span className='truncate font-medium'>{userData.name}</span>
+                <span className='truncate text-xs'>{userData.email}</span>
               </div>
               <ChevronsUpDown className='ml-auto size-4' />
             </SidebarMenuButton>
@@ -67,12 +93,12 @@ export function NavUser({
             <DropdownMenuLabel className='p-0 font-normal'>
               <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
                 <Avatar className='h-8 w-8 rounded-lg'>
-                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarImage src={userData.avatar} alt={userData.name} />
                   <AvatarFallback className='rounded-lg'>CN</AvatarFallback>
                 </Avatar>
                 <div className='grid flex-1 text-left text-sm leading-tight'>
-                  <span className='truncate font-medium'>{user.name}</span>
-                  <span className='truncate text-xs'>{user.email}</span>
+                  <span className='truncate font-medium'>{userData.name}</span>
+                  <span className='truncate text-xs'>{userData.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>

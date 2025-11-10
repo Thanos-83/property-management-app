@@ -7,7 +7,6 @@ import { EyeIcon, EyeOffIcon, Loader } from 'lucide-react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useSearchParams } from 'next/navigation';
 
 import {
   Form,
@@ -17,47 +16,45 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-// import { toast } from 'sonner';
-import { PhoneInput } from '@/components/ui/phone-input';
-import {
-  createMemberSchema,
-  CreateMemberSchemaType,
-} from '@/lib/schemas/createMemberSchema';
 import { toast } from 'sonner';
-import { createMemberFinalAction } from '@/lib/actions/taskMemberActions';
+import {
+  memberSignInSchema,
+  MemberSigninSchemaType,
+} from '@/lib/schemas/signInMemberSchema';
+import { signInTeamMember } from '@/lib/actions/taskMemberActions';
 
-export default function RegisterTeamMemberForm() {
+export default function LoginTeamMemberForm() {
   const [isVisible, setIsVisible] = useState<boolean>(false);
-  const searchParams = useSearchParams();
 
   const toggleVisibility = () => setIsVisible((prevState) => !prevState);
 
-  const form = useForm<CreateMemberSchemaType>({
-    resolver: zodResolver(createMemberSchema),
+  const form = useForm<MemberSigninSchemaType>({
+    resolver: zodResolver(memberSignInSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      mobilePhone: '',
-      email: searchParams.get('email') ?? '',
+      email: '',
       password: '',
     },
   });
 
-  const onSubmit = async (formData: CreateMemberSchemaType) => {
-    console.log('Form Data: ', formData);
-    const response = await createMemberFinalAction(formData);
-
-    if (response.status === 'fail') {
-      toast.error(response.message);
+  const onSubmit = async (formData: MemberSigninSchemaType) => {
+    const response = await signInTeamMember(formData);
+    console.log('Response : ', response);
+    if (response && !response?.success) {
+      toast.error(response?.message);
+      return;
+    } else {
+      form.reset();
     }
   };
 
   return (
     <div className='mx-auto w-[90%] max-w-[32rem]'>
       <div className='bg-muted max-w-lg m-auto h-fit w-full overflow-hidden rounded-[calc(var(--radius)+.125rem)] border border-border shadow-md shadow-zinc-950/5 dark:[--color-muted:var(--color-zinc-900)]'>
-        <div className='bg-popover -m-[2px] rounded-b-[calc(var(--radius)+.5rem)] border-b border-b-border p-6'>
+        <div className='bg-popover -m-[2px] rounded-b-[calc(var(--radius)+.125rem)] border-b border-b-border p-6'>
           <div className='text-center'>
-            <h1 className='text-lg'>Create your account</h1>
+            <h1 className='text-title mb-1 mt-4 text-xl font-semibold'>
+              Login to your Rendy.com collaborators Account
+            </h1>
           </div>
 
           <Form {...form}>
@@ -66,57 +63,12 @@ export default function RegisterTeamMemberForm() {
               className='mt-6 space-y-6'>
               <FormField
                 control={form.control}
-                name='firstName'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className='block text-sm'>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder='First Name' {...field} />
-                    </FormControl>
-                    <FormMessage className='text-red-600' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='lastName'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className='block text-sm'>Last Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder='Last Name' {...field} />
-                    </FormControl>
-                    <FormMessage className='text-red-600' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
                 name='email'
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input
-                        type='email'
-                        placeholder='Email'
-                        {...field}
-                        readOnly
-                        className='text-gray-400'
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='mobilePhone'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mobile Phone Number</FormLabel>
-                    <FormControl>
-                      <PhoneInput {...field} />
+                      <Input type='text' placeholder='Email' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -127,7 +79,14 @@ export default function RegisterTeamMemberForm() {
                 name='password'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <div className='flex items-center justify-between'>
+                      <FormLabel>Password</FormLabel>
+                      <Link
+                        href='/forgot-password'
+                        className='ml-auto text-xs underline-offset-4 hover:underline'>
+                        Forgot your password?
+                      </Link>
+                    </div>
                     <div className='relative'>
                       <FormControl>
                         <Input
@@ -169,7 +128,7 @@ export default function RegisterTeamMemberForm() {
                       : 'hidden'
                   }`}
                 />
-                Sign Up
+                Sign In
               </Button>
             </form>
           </Form>
@@ -177,13 +136,9 @@ export default function RegisterTeamMemberForm() {
 
         <div className='p-3'>
           <p className='text-accent-foreground text-center text-sm'>
-            Already have an account ?
-            <Button
-              disabled={!searchParams.has('token')}
-              asChild
-              variant='link'
-              className='px-2'>
-              <Link href='/auth/login'>Sign In</Link>
+            Don&apos;t have an account ?
+            <Button asChild variant='link' className='px-2'>
+              <Link href='/register'>Sign Up</Link>
             </Button>
           </p>
         </div>

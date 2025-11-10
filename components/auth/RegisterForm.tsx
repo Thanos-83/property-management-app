@@ -20,11 +20,14 @@ import {
 } from '@/components/ui/form';
 import { toast } from 'sonner';
 import { protocol, rootDomain } from '@/lib/utils';
+import { Provider } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterForm() {
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
   const toggleVisibility = () => setIsVisible((prevState) => !prevState);
+  const router = useRouter();
 
   const form = useForm<AuthSignupSchemaType>({
     resolver: zodResolver(authSignUpSchema),
@@ -38,7 +41,6 @@ export default function RegisterForm() {
   const onSubmit = async (formData: AuthSignupSchemaType) => {
     const response = await signUp(formData);
 
-    console.log('Response: ', response?.error);
     if (!response?.success && typeof response?.error === 'object') {
       response?.error.map((err) => toast.error(err?.message));
     } else if (!response?.success) {
@@ -47,7 +49,17 @@ export default function RegisterForm() {
     // form.reset();
   };
 
-  return (
+  const handleSignInWithProvider = async (provider: Provider) => {
+    const response = await signInWithProvider(provider);
+
+    if (response.error) {
+      toast.error(response.message);
+    } else {
+      router.push(response.data?.redirectUrl);
+    }
+  };
+
+  http: return (
     <div className='mx-auto w-[90%] max-w-[32rem]'>
       <Link
         href={`${protocol}://${rootDomain}`}
@@ -159,7 +171,7 @@ export default function RegisterForm() {
 
           <div className='grid grid-cols-2 gap-3'>
             <Button
-              onClick={() => signInWithProvider('google')}
+              onClick={() => handleSignInWithProvider('google')}
               type='button'
               variant='outline'>
               <svg

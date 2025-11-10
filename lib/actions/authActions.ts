@@ -104,20 +104,23 @@ export async function signUp(formData: AuthSignupSchemaType) {
       };
     }
 
+    console.log('REsult data: ', result.data);
     const {
       data: { user },
       error,
     } = await supabase.auth.signUp({
-      ...result.data,
-
+      email: result.data.email,
+      password: result.data.password,
       options: {
-        emailRedirectTo: 'http://localhost:3000/auth/callback',
+        emailRedirectTo: 'http://myapp.site:3000/auth/callback',
         data: {
           full_name: result.data.fullName,
+          name: result.data.fullName,
+          role: 'admin',
         },
       },
     });
-
+    console.log('Error: ', error);
     if (error) {
       console.error('Signup error details:', {
         message: error.message,
@@ -146,25 +149,32 @@ export async function signInWithProvider(provider: Provider) {
   // 1. Create supabase client
   const supabase = await createClient();
 
-  // 2. Sign in with Google
-  const { error, data } = await supabase.auth.signInWithOAuth({
+  // 2. Signin or Signup with Provider (creates a user in auth.users table)
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: provider,
     options: {
       redirectTo: `${origin}/auth/callback`,
     },
   });
-  console.log('Error signing in with Goggle: ', error);
+
   if (error) {
     console.log('Error signing in with Google provider: ', error);
+    return {
+      status: 'fail',
+      message: `Error creating account with ${provider}`,
+      error: error,
+      data: null,
+    };
   } else {
-    console.log('Data signing up with Google: ', data);
-    // ADD THESE LOGS HERE:
-    console.log(
-      'Redirect URL being sent to Google:',
-      `${origin}/auth/callback`
-    );
-    console.log('OAuth data URL:', data.url);
-    return redirect(data.url);
+    // return redirect(data.url);
+    return {
+      status: 'success',
+      message: 'User successfully created',
+      error: null,
+      data: {
+        redirectUrl: data.url,
+      },
+    };
   }
 }
 

@@ -32,8 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-// import { toast } from 'sonner';
-import { memberInvitationAction } from '@/lib/actions/taskActions';
+import { memberInvitationAction } from '@/lib/actions/taskMemberActions';
+import { toast } from 'sonner';
 
 //FIX: This must be returned from the DB, from table user_roles!!!
 const memberRole = ['cleaner', 'maintenance', 'inspection', 'other'];
@@ -62,12 +62,18 @@ export default function AddTaskMemberModal({ onSuccess }: AddTaskModalProps) {
       const response = await memberInvitationAction(memberData);
       console.log('Response in Dialog: ', response);
       // Print a message based on the response
+      if (!response.status) {
+        toast.warning(response.message);
+      } else {
+        toast.success('Invitation send to the member');
+      }
       onSuccess?.();
       setIsLoading(false);
       setOpen(false);
     } catch (error) {
       // Print a message of an unexpected error
       console.log('Error inviting member: ', error);
+      toast.error('Unkown Error sending invitation');
       setIsLoading(false);
       setOpen(false);
     }
