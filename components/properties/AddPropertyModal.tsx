@@ -29,10 +29,25 @@ import { toast } from 'sonner';
 import { Info, Loader2Icon } from 'lucide-react';
 import { addPropertyAction } from '@/lib/actions/propertiesActions';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import Image from 'next/image';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 
 type AddPropertyDialogProps = {
   onSuccess?: () => void;
 };
+
+const platformOptions = [
+  { value: 'Airbnb', label: 'Airbnb', icon: '/icons/airbnb.svg' },
+  { value: 'Booking', label: 'Booking.com', icon: '/icons/booking.svg' },
+  { value: 'Vrbo', label: 'Vrbo', icon: '/icons/vrbo.svg' },
+  { value: 'Expedia', label: 'Expedia', icon: '/icons/expedia.svg' },
+];
 
 export function AddPropertyDialog({ onSuccess }: AddPropertyDialogProps) {
   const [open, setOpenDialog] = useState(false);
@@ -45,11 +60,10 @@ export function AddPropertyDialog({ onSuccess }: AddPropertyDialogProps) {
       description: '',
       location: '',
       rooms: 1,
+      platform: undefined,
       ical_url: '',
     },
   });
-
-  // console.log('Iam here 2');
 
   async function onSubmit(data: PropertySchemaType) {
     console.log('Data: ', data);
@@ -76,8 +90,8 @@ export function AddPropertyDialog({ onSuccess }: AddPropertyDialogProps) {
     <Dialog open={open} onOpenChange={setOpenDialog}>
       <DialogTrigger asChild>
         <Button
-          className='bg-primary-main text-white rounded-md '
-          variant='outline'
+          className=''
+          variant='default'
           onClick={() => setOpenDialog(true)}>
           Προσθήκη Ακινήτου
         </Button>
@@ -148,6 +162,43 @@ export function AddPropertyDialog({ onSuccess }: AddPropertyDialogProps) {
                       value={field.value.toString()}
                       onChange={(e) => field.onChange(Number(e.target.value))}
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='platform'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Provider</FormLabel>
+                  <FormControl>
+                    <Select
+                      {...field}
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className='w-full'>
+                          <SelectValue placeholder='Select a platform to add iCal URL' />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {platformOptions.map((option) => (
+                          <SelectItem key={option.label} value={option.value}>
+                            <Image
+                              width={64}
+                              height={24}
+                              alt={option.label}
+                              src={option.icon}
+                              priority
+                              className='h-auto'
+                            />
+                            {option.value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
