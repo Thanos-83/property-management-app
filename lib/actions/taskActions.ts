@@ -24,7 +24,7 @@ export const fetchTasksAction = async () => {
           last_name,
           phone
         ),
-        properties (
+        property:properties!property_id (
           title
         )
         `
@@ -72,16 +72,34 @@ export const addTaskAction = async (taskData: TaskSchemaType) => {
     return { error: parsed.error, status: 400 };
   }
 
+  // console.log('Parsed data: ', parsed);
   try {
     const supabase = await createClient();
 
-    console.log('Task Data: ', parsed.data);
+    const { subtasks, ...taskData } = parsed.data;
 
-    const { data, error } = await supabase.from('tasks').insert([parsed.data]);
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert([taskData])
+      .select()
+      .single();
 
     if (error) {
       console.error('Error adding task:', error);
       return { error: error.message, status: 500 };
+    }
+
+    const subtasksData = subtasks.map((subtask) => {
+      return { description: subtask.description, task_id: data.id };
+    });
+
+    const { error: subtasksError } = await supabase
+      .from('task_list_item')
+      .insert(subtasksData);
+
+    if (subtasksError) {
+      console.error('Error adding subtasks:', error);
+      return { error: subtasksError.message, status: 500 };
     }
 
     // Revalidate tasks tag to update UI
@@ -136,5 +154,31 @@ export const deleteTaskByIdAction = async (taskIds: string[]) => {
     return response;
   } catch (error) {
     console.log('Error deleting tasks: ', error);
+  }
+};
+
+export const fetchTaskPrioritiesAction = async () => {
+  try {
+    const supabase = await createClient();
+
+    const { data: taskPriorities, error } = await supabase
+      .from('task_priorities')
+      .select('*')
+      .order('id', { ascending: true });
+
+    // console.log('Task priorities server: ', taskPriorities);
+    if (error) {
+      console.error('Error fetching tasks priorities:', error);
+      return { error: error.message, status: 500, data: null };
+    }
+
+    return { error: null, status: 200, data: taskPriorities };
+  } catch (error) {
+    console.error('Error fetching tasks priorities:', error);
+    return {
+      error: 'Error fetching tasks priorities',
+      status: 500,
+      data: null,
+    };
   }
 };

@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import {
-  BookOpen,
   Bot,
   Command,
   Frame,
@@ -10,10 +9,12 @@ import {
   Map,
   PieChart,
   Send,
-  Settings2,
+  // Settings2,
+  // BookOpen,
   SquareTerminal,
   CalendarRange,
   HouseIcon,
+  NotebookPen,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/dashboard/nav-main';
@@ -47,7 +48,14 @@ const data = {
       items: [],
     },
     {
-      title: 'Calendars',
+      title: 'Bookings',
+      url: '/dashboard/bookings',
+      icon: NotebookPen,
+      isActive: true,
+      items: [],
+    },
+    {
+      title: 'Calendar',
       url: '/dashboard/calendar',
       icon: CalendarRange,
       isActive: true,
@@ -66,58 +74,54 @@ const data = {
           title: 'Task Members',
           url: '/dashboard/members',
         },
-        {
-          title: 'Quantum',
-          url: '#',
-        },
       ],
     },
-    {
-      title: 'Documentation',
-      url: '#',
-      icon: BookOpen,
-      items: [
-        {
-          title: 'Introduction',
-          url: '#',
-        },
-        {
-          title: 'Get Started',
-          url: '#',
-        },
-        {
-          title: 'Tutorials',
-          url: '#',
-        },
-        {
-          title: 'Changelog',
-          url: '#',
-        },
-      ],
-    },
-    {
-      title: 'Settings',
-      url: '#',
-      icon: Settings2,
-      items: [
-        {
-          title: 'General',
-          url: '#',
-        },
-        {
-          title: 'Team',
-          url: '#',
-        },
-        {
-          title: 'Billing',
-          url: '#',
-        },
-        {
-          title: 'Limits',
-          url: '#',
-        },
-      ],
-    },
+    // {
+    //   title: 'Documentation',
+    //   url: '#',
+    //   icon: BookOpen,
+    //   items: [
+    //     {
+    //       title: 'Introduction',
+    //       url: '#',
+    //     },
+    //     {
+    //       title: 'Get Started',
+    //       url: '#',
+    //     },
+    //     {
+    //       title: 'Tutorials',
+    //       url: '#',
+    //     },
+    //     {
+    //       title: 'Changelog',
+    //       url: '#',
+    //     },
+    //   ],
+    // },
+    // {
+    //   title: 'Settings',
+    //   url: '#',
+    //   icon: Settings2,
+    //   items: [
+    //     {
+    //       title: 'General',
+    //       url: '#',
+    //     },
+    //     {
+    //       title: 'Team',
+    //       url: '#',
+    //     },
+    //     {
+    //       title: 'Billing',
+    //       url: '#',
+    //     },
+    //     {
+    //       title: 'Limits',
+    //       url: '#',
+    //     },
+    //   ],
+    // },
   ],
   navSecondary: [
     {

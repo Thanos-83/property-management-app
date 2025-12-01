@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+// Define subtask schema
+export const subtaskSchema = z.object({
+  id: z.string(),
+  description: z.string().min(5, 'Subtask content is required'),
+  // order: z.number().optional(),
+  // completed: z.boolean().optional().default(false),
+});
+
+export type SubtaskType = z.infer<typeof subtaskSchema>;
+
 export const taskSchema = z.object({
   id: z.string().uuid().optional(),
   property_id: z.string().uuid(),
@@ -8,10 +18,13 @@ export const taskSchema = z.object({
   assigner_id: z.string().uuid(),
   type: z.string().min(1, 'Task type is required'),
   status: z.string().optional(),
+  priority: z.number().int(),
   scheduled_date: z.string().min(1, 'Scheduled date is required'),
   notes: z.string().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
+
+  subtasks: z.array(subtaskSchema).min(0),
 });
 
 export type TaskSchemaType = z.infer<typeof taskSchema>;

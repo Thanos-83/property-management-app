@@ -33,7 +33,7 @@ export type TableTask = {
   updatedAt: string;
   team_member_id: string;
   team_members: TableTeamMemberInfo | null;
-  properties: {
+  property: {
     title: string;
   };
 };
