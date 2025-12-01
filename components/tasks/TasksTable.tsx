@@ -156,7 +156,7 @@ const columns: ColumnDef<TableTask>[] = [
     header: 'Property Title',
     accessorKey: 'properties',
     cell: ({ row }) => {
-      return <div className=''>{row.original.properties.title}</div>;
+      return <div className=''>{row.original.property.title}</div>;
     },
   },
   {
@@ -230,7 +230,7 @@ export default function TasksTable({
     if (!statusColumn) return [];
 
     const values = Array.from(statusColumn.getFacetedUniqueValues().keys());
-    console.log('Status values: ', statusColumn?.getFacetedUniqueValues());
+    // console.log('Status values: ', statusColumn?.getFacetedUniqueValues());
 
     return values.sort();
   }, [table.getColumn('status')?.getFacetedUniqueValues()]);
@@ -272,6 +272,7 @@ export default function TasksTable({
     });
 
     const response = await deleteTaskByIdAction(taskIds);
+    table.toggleAllRowsSelected(false);
     console.log('response deleting tasks: ', response);
   };
 

@@ -2,44 +2,32 @@
 
 import React, { useState, useEffect } from 'react';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { SubmitHandler, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { taskSchema, TaskSchemaType } from '@/lib/schemas/task';
-import { addTaskAction } from '@/lib/actions/taskActions';
+import {
+  addTaskAction,
+  fetchTaskPrioritiesAction,
+} from '@/lib/actions/taskActions';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   DialogTrigger,
   DialogClose,
+  DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Form } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { getPropertiesDataAction } from '@/lib/actions/propertiesActions';
 import { getTaskMembersAction } from '@/lib/actions/taskMemberActions';
 import { createClient } from '@/lib/utils/supabase/client';
 import { PlusIcon } from 'lucide-react';
-
-const taskTypes = ['cleaning', 'maintenance', 'inspection', 'other'];
+import StepOne from './StepOne';
+import StepTwo, { StepTwoRef } from './StepTwo';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 type Property = {
   id: string;
@@ -51,36 +39,44 @@ type TaskMember = {
   name: string;
 };
 
-// type AddTaskModalProps = {
-//   onSuccess?: () => void;
-// };
+type TaskPriorities = {
+  id: number;
+  created_at: string;
+  priority: string;
+  priority_color: string;
+};
 
 export default function AddTaskModal() {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
   const [taskMembers, setTaskMembers] = useState<TaskMember[]>([]);
+  const [taskPriorities, setTaskPriorities] = useState<TaskPriorities[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 2;
+  const stepTwoRef = React.useRef<StepTwoRef>(null);
 
+  const defaultValues: TaskSchemaType = {
+    type: '',
+    scheduled_date: '',
+    notes: '',
+    team_member_id: null,
+    property_id: '',
+    status: 'pending',
+    priority: 1,
+    assigner_id: '',
+    // This must be an empty array to match the Zod default behavior
+    subtasks: [],
+  };
   const form = useForm<TaskSchemaType>({
     resolver: zodResolver(taskSchema),
-    defaultValues: {
-      type: '',
-      scheduled_date: '',
-      notes: '',
-      team_member_id: null,
-      property_id: '',
-      status: 'pending',
-      assigner_id: '',
-    },
+    defaultValues: defaultValues,
+    mode: 'onBlur',
   });
-
-  console.log('Form error: ', form.formState.errors);
 
   // Add a state to track if the required fields of the current step are valid
   const [isStepValid, setIsStepValid] = useState(false);
 
+  // Fetch all initially nessesary data for the selects.
   useEffect(() => {
     async function fetchUserData() {
       const supabase = createClient();
@@ -119,14 +115,44 @@ export default function AddTaskModal() {
       }
     }
     fetchTaskMembers();
+
+    // console.log('Iam here 1');
+    async function fetchTaskPriorities() {
+      const response = await fetchTaskPrioritiesAction();
+
+      // console.log('Iam here 2');
+
+      if (!response.error && response.data) {
+        setTaskPriorities(response.data);
+      } else {
+        toast.error('Failed to fetch task priorities');
+      }
+    }
+
+    fetchTaskPriorities();
+    // console.log('Iam here 3');
+
+    return () => {
+      fetchUserData();
+      fetchProperties();
+      fetchTaskMembers();
+      fetchTaskPriorities();
+    };
   }, [form]);
+
+  // console.log('Task priorities: ', taskPriorities);
 
   // Check if current step is valid - this runs once when form loads and whenever the form state changes
   useEffect(() => {
     const checkStepValidity = () => {
       if (currentStep === 1) {
         // define the mandatory fields for step 1
-        const requiredFields = ['property_id', 'type', 'scheduled_date'];
+        const requiredFields = [
+          'property_id',
+          'type',
+          'priority',
+          'scheduled_date',
+        ];
 
         // Check if all required fields have values and no errors
         const allValid = requiredFields.every((field) => {
@@ -175,7 +201,16 @@ export default function AddTaskModal() {
       });
 
       if (allValid) {
-        setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
+        setCurrentStep((prev) => {
+          const nextStep = Math.min(prev + 1, totalSteps);
+          // Focus on the first field of step 2 after state update
+          if (nextStep === 2) {
+            setTimeout(() => {
+              stepTwoRef.current?.focusFirstField();
+            }, 0);
+          }
+          return nextStep;
+        });
       }
     } else {
       // For other steps, just advance if there are no validation errors
@@ -199,6 +234,7 @@ export default function AddTaskModal() {
         return [
           'property_id',
           'type',
+          'priority',
           'scheduled_date',
           'team_member_id',
           'assigner_id',
@@ -210,8 +246,9 @@ export default function AddTaskModal() {
     }
   };
 
-  async function onSubmit(data: TaskSchemaType) {
-    setIsLoading(true);
+  const onSubmit: SubmitHandler<TaskSchemaType> = async (
+    data: TaskSchemaType
+  ) => {
     try {
       // Map camelCase keys from form to snake_case for DB
       const payload = {
@@ -221,28 +258,28 @@ export default function AddTaskModal() {
         scheduled_date: data.scheduled_date,
         notes: data.notes,
         type: data.type,
+        priority: data.priority,
         status: 'pending',
+        subtasks: data.subtasks,
       };
 
       const response = await addTaskAction(payload);
 
       if (response.status === 201) {
-        form.reset();
         const supabase = createClient();
         const {
           data: { user },
         } = await supabase.auth.getUser();
+        form.reset();
+
         if (user?.app_metadata.role === 'admin') {
+          // setCurrentStep(1);
+
+          toast.success('Task added successfully');
           form.setValue('assigner_id', user?.id);
         }
-        setTimeout(() => {
-          setOpen(false);
-          setIsLoading(false);
-          setCurrentStep(1);
-          toast.success('Task added successfully');
-
-          // onSuccess?.();
-        }, 200);
+        setOpen(false);
+        setCurrentStep(1);
       } else {
         toast.error('Failed to add task');
       }
@@ -250,8 +287,7 @@ export default function AddTaskModal() {
       console.log('Error adding task: ', error);
       toast.error('An error occurred while adding task');
     }
-    setIsLoading(false);
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -261,19 +297,20 @@ export default function AddTaskModal() {
           Create Task
         </Button>
       </DialogTrigger>
-      <DialogContent className='sm:max-w-lg'>
+      <DialogContent className='sm:max-w-2xl'>
         <DialogHeader>
-          <DialogTitle>Add New Task</DialogTitle>
-          <DialogDescription>Add a new task for a property.</DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
-            {/* Step indicator */}
-            <div className='flex items-center justify-center mb-6'>
-              {Array.from({ length: totalSteps }).map((_, index) => (
-                <React.Fragment key={index}>
-                  <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-full 
+          <VisuallyHidden asChild>
+            <DialogTitle>Add New Task</DialogTitle>
+          </VisuallyHidden>
+          <VisuallyHidden asChild>
+            <DialogDescription>Add task info</DialogDescription>
+          </VisuallyHidden>
+          {/* Step indicator */}
+          <div className='flex items-center justify-center mb-6'>
+            {Array.from({ length: totalSteps }).map((_, index) => (
+              <React.Fragment key={index}>
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-full 
                       ${
                         index + 1 === currentStep
                           ? 'bg-primary text-primary-foreground'
@@ -281,156 +318,37 @@ export default function AddTaskModal() {
                             ? 'bg-primary/80 text-primary-foreground'
                             : 'bg-muted text-muted-foreground'
                       }`}>
-                    {index + 1 < currentStep ? (
-                      <Check className='h-4 w-4' />
-                    ) : (
-                      <span>{index + 1}</span>
-                    )}
-                  </div>
-                  {index < totalSteps - 1 && (
-                    <div
-                      className={`w-10 h-1 mx-1 ${index + 1 < currentStep ? 'bg-primary' : 'bg-muted'}`}
-                    />
+                  {index + 1 < currentStep ? (
+                    <Check className='h-4 w-4' />
+                  ) : (
+                    <span>{index + 1}</span>
                   )}
-                </React.Fragment>
-              ))}
-            </div>
+                </div>
+                {index < totalSteps - 1 && (
+                  <div
+                    className={`w-10 h-1 mx-1 ${index + 1 < currentStep ? 'bg-primary' : 'bg-muted'}`}
+                  />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
             {/* Step 1: Basic Task Information */}
             {currentStep === 1 && (
-              <>
-                <FormField
-                  control={form.control}
-                  name='property_id'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Property</FormLabel>
-                      <FormControl>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}>
-                          <SelectTrigger className='w-full'>
-                            <SelectValue placeholder='Select property' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {properties.map((property) => (
-                              <SelectItem key={property.id} value={property.id}>
-                                {property.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='type'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Task Type</FormLabel>
-                      <FormControl>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}>
-                          <SelectTrigger className='w-full'>
-                            <SelectValue placeholder='Select task type' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {taskTypes.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type.charAt(0).toUpperCase() + type.slice(1)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name='scheduled_date'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Scheduled Date</FormLabel>
-                      <FormControl>
-                        <Input type='date' {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='team_member_id'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Assignee (optional - can be assigned later)
-                      </FormLabel>
-                      <FormControl>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value || ''}>
-                          <SelectTrigger className='w-full'>
-                            <SelectValue placeholder='Select assignee' />
-                          </SelectTrigger>
-
-                          <SelectContent>
-                            {taskMembers.length === 0 && (
-                              <SelectItem value='no-taskMembers' disabled>
-                                No task members available
-                              </SelectItem>
-                            )}
-                            {taskMembers.map((taskMember) => (
-                              <SelectItem
-                                key={taskMember.id}
-                                value={taskMember.id}>
-                                {taskMember.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='assigner_id'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input {...field} value={field.value} hidden />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
+              <StepOne
+                form={form}
+                properties={properties}
+                taskMembers={taskMembers}
+                taskPriorities={taskPriorities}
+              />
             )}
 
             {/* Step 2: Additional Information */}
             {currentStep === 2 && (
               <>
-                <FormField
-                  control={form.control}
-                  name='notes'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <StepTwo form={form} ref={stepTwoRef} />
               </>
             )}
             <div className='flex justify-between space-x-2'>
@@ -440,7 +358,8 @@ export default function AddTaskModal() {
                   variant='outline'
                   onClick={prevStep}
                   className='flex items-center'
-                  disabled={isLoading}>
+                  // disabled={isLoading}
+                >
                   <ChevronLeft className='h-4 w-4 mr-1' />
                   Previous
                 </Button>
@@ -449,7 +368,11 @@ export default function AddTaskModal() {
               <div className='flex-1'></div>
 
               <DialogClose asChild>
-                <Button variant='outline' type='button' disabled={isLoading}>
+                <Button
+                  variant='outline'
+                  type='button'
+                  // disabled={isLoading}
+                >
                   Cancel
                 </Button>
               </DialogClose>
@@ -467,8 +390,8 @@ export default function AddTaskModal() {
                   <ChevronRight className='h-4 w-4 ml-1' />
                 </Button>
               ) : (
-                <Button type='submit' disabled={isLoading}>
-                  {isLoading ? 'Adding...' : 'Add Task'}
+                <Button type='submit' disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Adding...' : 'Add Task'}
                 </Button>
               )}
             </div>

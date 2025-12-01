@@ -31,11 +31,8 @@ export default function UpdateTaskStatus({
   //   console.log('open dialog status: ', open);
 
   const handleUpdateTaskStatus = useCallback(async () => {
-    console.log('Task id: ', taskId);
-    console.log('Task status: ', taskStatus);
     setLoading(true);
     const response = await updateTaskStatusAction(taskId, newStatus);
-    console.log('Response : ', response);
     if (!response.error) {
       setTimeout(() => {
         setOpen(false);
@@ -46,7 +43,7 @@ export default function UpdateTaskStatus({
       toast.error('Error updating status');
       setLoading(false);
     }
-  }, [newStatus, taskId, taskStatus]);
+  }, [newStatus, taskId]);
   return (
     <Dialog open={open} onOpenChange={() => setOpen(!open)}>
       <DialogTrigger asChild>

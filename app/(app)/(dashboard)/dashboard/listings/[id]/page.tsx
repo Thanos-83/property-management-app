@@ -1,11 +1,12 @@
-import DashboardPageWrapper from '@/components/DashboardPageWrapper';
 import React from 'react';
 
 function Property() {
   return (
-    <DashboardPageWrapper>
-      <div className='px-6'>Single Property Management Page</div>
-    </DashboardPageWrapper>
+    <div>
+      <h1 className='text-2xl font-bold px-4 my-4'>
+        Single Property Management Page
+      </h1>
+    </div>
   );
 }
 
