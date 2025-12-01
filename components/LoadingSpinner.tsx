@@ -4,8 +4,8 @@ import React from 'react';
 function LoadingSpinner() {
   return (
     <div className='flex items-center justify-center h-96'>
-      <Loader2Icon className='w-8 h-8 animate-spin' />
-      <span className='ml-2'>Loading calendar...</span>
+      <Loader2Icon className='w-16 h-16 animate-spin' />
+      <span className='ml-2'>Loading spinner component calendar...</span>
     </div>
   );
 }

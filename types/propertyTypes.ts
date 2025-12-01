@@ -1,10 +1,25 @@
-export type PropertyTypes = {
+export type PropertyTypesApi = {
   id: string;
+  company_id: string | null;
+  owner_id: string;
   title: string;
   description: string;
   location: string;
   rooms: number;
-  ical_url: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PropertyTypesApp = {
+  id: string;
+  company_id: string | null;
+  owner_id: string;
+  title: string;
+  description: string;
+  location: string;
+  rooms: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type PropertyIcalUrls = {
@@ -17,19 +32,3 @@ export type PropertyIcalUrls = {
   last_synced: string | null;
   property_id: string;
 };
-
-export type PropertyTypesApi = {
-  company_id: string | null;
-  created_at: string;
-  description: string;
-  // ical_url: string;
-  id: string;
-  location: string;
-  owner_id: string;
-  rooms: number;
-  title: string;
-  updated_at: string;
-  property_icals: [PropertyIcalUrls];
-};
-
-// export type
