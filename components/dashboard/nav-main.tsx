@@ -58,6 +58,7 @@ export function NavMain({
                       href={item.url}>
                       {item.icon && <item.icon className='w-4 h-4' />}
                       {item.title}
+                      
                     </Link>
                   )}
                 </SidebarMenuButton>

@@ -12,6 +12,10 @@ export const metadata: Metadata = {
 };
 import { createClient } from '@/lib/utils/supabase/server';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import dynamic from 'next/dynamic';
+
+
 
 export default async function DashboardLayout({
   children,
@@ -25,6 +29,9 @@ export default async function DashboardLayout({
     return redirect('/auth/login');
   }
 
+    const headerList =await headers();
+  const pathname =  headerList.get("x-current-path");
+console.log('Pathname in Dashboard layout: ',pathname);
   return (
     <html lang='en'>
       <body>
@@ -32,10 +39,9 @@ export default async function DashboardLayout({
           <div className=''>
             <SidebarProvider className=''>
               <AppSidebar />
-
-              <SidebarInset className='overflow-hidden '>
-                <DashboardHeader />
-
+              <SidebarInset className='overflow-hidden'>
+                {!pathname?.split("/").includes("email") && 
+                <DashboardHeader />}
                 {children}
               </SidebarInset>
             </SidebarProvider>

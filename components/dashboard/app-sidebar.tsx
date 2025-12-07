@@ -9,12 +9,14 @@ import {
   Map,
   PieChart,
   Send,
+  Mail,
   // Settings2,
   // BookOpen,
   SquareTerminal,
   CalendarRange,
   HouseIcon,
   NotebookPen,
+  MessagesSquareIcon,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/dashboard/nav-main';
@@ -51,6 +53,20 @@ const data = {
       title: 'Bookings',
       url: '/dashboard/bookings',
       icon: NotebookPen,
+      isActive: true,
+      items: [],
+    },
+    {
+      title: 'Chats',
+      url: '/dashboard/chat',
+      icon: MessagesSquareIcon,
+      isActive: true,
+      items: [],
+    },
+    {
+      title: 'Emails',
+      url: '/dashboard/email',
+      icon: Mail,
       isActive: true,
       items: [],
     },

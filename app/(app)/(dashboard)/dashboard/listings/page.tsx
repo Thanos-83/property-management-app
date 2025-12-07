@@ -3,33 +3,8 @@ import { PropertyTypesApi } from '@/types/propertyTypes';
 // import { getPropertiesDataAction } from '@/lib/actions/propertiesActions';
 import Property from '@/components/properties/Property';
 import { cookies } from 'next/headers';
-// import dynamic from 'next/dynamic';
 
-// const Property = dynamic(() => import('@/components/properties/Property'));
 
-// const fetchProperties = async () => {
-//   // Test API call with proper cookie forwarding from server component
-//   const cookieStore = await cookies();
-//   const cookieHeader = cookieStore
-//     .getAll()
-//     .map((cookie) => `${cookie.name}=${cookie.value}`)
-//     .join('; ');
-
-//   console.log('Making API call from server component with cookies...');
-
-//   const response = await fetch(`http://localhost:3000/api/properties`, {
-//     headers: {
-//       Cookie: cookieHeader,
-//     },
-//     next: {
-//       tags: ['properties'],
-//     },
-//   });
-
-//   const { properties } = await response.json();
-
-//   return properties;
-// };
 
 export default async function DashboardListingsPage() {
   // const { properties } = await getPropertiesDataAction();
@@ -45,7 +20,7 @@ export default async function DashboardListingsPage() {
 
   // console.log('Making API call from server component with cookies...');
 
-  const response = await fetch(`http://localhost:3000/api/properties`, {
+  const response = await fetch(`https://myapp.site:3000/api/properties`, {
     headers: {
       Cookie: cookieHeader,
     },

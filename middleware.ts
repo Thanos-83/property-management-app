@@ -48,6 +48,8 @@ function extractSubdomain(request: NextRequest): string | null {
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const subdomain = extractSubdomain(request);
+  const headers = new Headers(request.headers);
+  headers.set("x-current-path", request.nextUrl.pathname);
 
   console.log('=== MIDDLEWARE START ===');
   console.log('Pathname:', pathname);
@@ -77,7 +79,7 @@ export async function middleware(request: NextRequest) {
     } else {
       if (pathname.startsWith('/auth')) {
         return NextResponse.redirect(
-          new URL('http://app.myapp.site:3000/auth/login', request.url)
+          new URL('https://app.myapp.site:3000/auth/login', request.url)
         );
       }
       return NextResponse.next();
@@ -92,9 +94,9 @@ export async function middleware(request: NextRequest) {
         pathname === '/login' ||
         pathname === '/register'
       ) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        return NextResponse.redirect(new URL('/dashboard', request.url), {headers});
       }
-      return NextResponse.next();
+      return NextResponse.next({headers});
     } else {
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       console.log('Error: ', error);
