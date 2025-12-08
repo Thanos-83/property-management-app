@@ -39,6 +39,7 @@ import { getEmailsFromDB } from '@/lib/actions/emailActions';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/utils/supabase/client';
 import { SidebarTrigger } from '../ui/sidebar';
+import { ComposeEmailDialog } from './ComposeEmailDialog';
 
 
 interface MailLayoutProps {
@@ -53,10 +54,6 @@ interface MailLayoutProps {
   initialMails?: EmailSummary[];
 }
 
-
-
-// ... imports ...
-
 export function MailLayout({
   accounts,
   defaultLayout = [265, 440, 655],
@@ -69,6 +66,7 @@ export function MailLayout({
   const [selectedFolder, setSelectedFolder] = React.useState('inbox');
   const [mails, setMails] = React.useState<EmailSummary[]>(initialMails);
   const [selectedMailId, setSelectedMailId] = React.useState<string | null>(null);
+  const [composeOpen, setComposeOpen] = React.useState(false);
   
   const [loading, setLoading] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
@@ -80,11 +78,6 @@ export function MailLayout({
     archive: 0,
   });
   
-console.log('mails: ',mails);
-
-
-
-
   // Handle folder changes by fetching from DB using CLIENT-SIDE Supabase
   const handleFolderChange = async (folder: string) => {
   
@@ -343,7 +336,6 @@ console.log('mails: ',mails);
         }}
         className="items-stretch h-full"
       >
-        {/* ... Panel 1 ... */}
         <ResizablePanel
           defaultSize={defaultLayout[0]}
           collapsedSize={navCollapsedSize}
@@ -364,7 +356,8 @@ console.log('mails: ',mails);
           }}
           className={cn(
             isCollapsed &&
-              'min-w-[50px] transition-all duration-300 ease-in-out'
+              'min-w-[50px] transition-all duration-300 ease-in-out',
+            'flex flex-col'
           )}
         >
           <div
@@ -385,6 +378,7 @@ console.log('mails: ',mails);
             isCollapsed={isCollapsed}
             selectedFolder={selectedFolder}
             onSelectFolder={(folder)=>handleFolderChange(folder)}
+            onCompose={() => setComposeOpen(true)}
             links={[
               {
                 title: 'Inbox',
@@ -481,6 +475,7 @@ console.log('mails: ',mails);
           <MailDisplay mail={selectedMail || null} accountId={selectedAccount} />
         </ResizablePanel>
       </ResizablePanelGroup>
+      <ComposeEmailDialog open={composeOpen} onOpenChange={setComposeOpen} accountId={selectedAccount} />
     </TooltipProvider>
   );
 }

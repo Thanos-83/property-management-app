@@ -137,27 +137,6 @@ button:hover {
   --sidebar-accent-foreground: hsl(46.1538 9.7744% 73.9216%);
   --sidebar-border: hsl(0 0% 92.1569%);
   --sidebar-ring: hsl(0 0% 70.9804%);
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
-    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
-  --radius: 0.5rem;
-  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-sm:
-    0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-  --shadow-md:
-    0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
-  --shadow-lg:
-    0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
-  --shadow-xl:
-    0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
-  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
 }
 
 @theme inline {
@@ -211,4 +190,77 @@ button:hover {
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
   --shadow-2xl: var(--shadow-2xl);
+}
+
+/* Editor Styles matching shadcn-editor */
+.editor-placeholder {
+  @apply text-muted-foreground overflow-hidden absolute top-4 left-8 text-sm select-none pointer-events-none;
+}
+
+.editor-paragraph {
+  @apply leading-7 mb-2 relative;
+}
+
+.editor-heading-h1 {
+  @apply scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl mb-4 mt-6;
+}
+
+.editor-heading-h2 {
+  @apply scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0 mb-4 mt-6;
+}
+
+.editor-heading-h3 {
+  @apply scroll-m-20 text-2xl font-semibold tracking-tight mb-2 mt-4;
+}
+
+.editor-quote {
+  @apply mt-6 border-l-2 pl-6 italic text-muted-foreground;
+}
+
+.editor-list-ol {
+  @apply my-6 ml-6 list-decimal [&>li]:mt-2;
+}
+
+.editor-list-ul {
+  @apply my-6 ml-6 list-disc [&>li]:mt-2;
+}
+
+.editor-listitem {
+  @apply mx-2;
+}
+
+.editor-nested-listitem {
+  @apply list-none;
+}
+
+.editor-link {
+  @apply font-medium text-primary underline underline-offset-4 cursor-pointer;
+}
+
+.editor-text-bold {
+  @apply font-bold;
+}
+
+.editor-text-italic {
+  @apply italic;
+}
+
+.editor-text-underline {
+  @apply underline underline-offset-4;
+}
+
+.editor-text-strikethrough {
+  @apply line-through;
+}
+
+.editor-text-underlineStrikethrough {
+  @apply underline line-through;
+}
+
+.editor-text-code {
+  @apply relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold;
+}
+
+.editor-code {
+  @apply bg-muted text-foreground p-4 rounded-lg font-mono text-sm overflow-x-auto my-4 relative;
 }

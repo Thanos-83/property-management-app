@@ -13,7 +13,6 @@ export const metadata: Metadata = {
 import { createClient } from '@/lib/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import dynamic from 'next/dynamic';
 
 
 
