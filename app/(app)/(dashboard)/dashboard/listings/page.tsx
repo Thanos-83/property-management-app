@@ -3,7 +3,7 @@ import { PropertyTypesApi } from '@/types/propertyTypes';
 // import { getPropertiesDataAction } from '@/lib/actions/propertiesActions';
 import Property from '@/components/properties/Property';
 import { cookies } from 'next/headers';
-
+import {protocol, rootDomain} from '@/lib/utils';
 
 
 export default async function DashboardListingsPage() {
@@ -20,13 +20,20 @@ export default async function DashboardListingsPage() {
 
   // console.log('Making API call from server component with cookies...');
 
-  const response = await fetch(`https://myapp.site:3000/api/properties`, {
+if (process.env.NODE_ENV === 'development') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
+  const baseUrl = `${protocol}://app.${rootDomain}`;
+  console.log('Base URL:', baseUrl);
+  const response = await fetch(`${baseUrl}/api/properties/`, {
     headers: {
       Cookie: cookieHeader,
     },
     next: {
       tags: ['properties'],
     },
+    cache: 'no-store',
   });
 
   const { properties } = await response.json();

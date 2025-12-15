@@ -10,6 +10,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+import { toast } from 'sonner';
+
 interface AccountSwitcherProps {
   isCollapsed: boolean;
   accounts: {
@@ -29,8 +31,42 @@ export function AccountSwitcher({
 }: AccountSwitcherProps) {
   const selected = accounts.find((account) => account.id === selectedAccount);
 
+  const handleAddAccount = async () => {
+    toast.loading('Starting connection...');
+    try {
+      // Pass the current account email as a hint if we are reconnecting
+      const currentEmail = selected?.email;
+      const params = currentEmail ? `?loginHint=${encodeURIComponent(currentEmail)}` : '';
+      
+      const response = await fetch(`/api/aurinko/url${params}`);
+      const data = await response.json();
+      
+      console.log('Auth API Response:', data);
+
+      if (response.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error('Failed to initialize connection');
+        console.error('Failed to get auth URL:', data.error);
+      }
+    } catch (error: any) {
+      const msg = error?.message || 'Unknown error';
+      toast.error(`Connection error: ${msg}`);
+      console.error('Error connecting account:', error);
+    }
+  };
+
   return (
-    <Select defaultValue={selectedAccount} onValueChange={onAccountChange}>
+    <Select 
+      value={selectedAccount} 
+      onValueChange={(val) => {
+        if (val === 'add_new_account_action') {
+          handleAddAccount();
+        } else {
+          onAccountChange(val);
+        }
+      }}
+    >
       <SelectTrigger
         className={cn(
           'flex items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0',
@@ -55,6 +91,12 @@ export function AccountSwitcher({
             </div>
           </SelectItem>
         ))}
+        <SelectItem value="add_new_account_action" className="text-muted-foreground font-medium border-t mt-1 pt-2 cursor-pointer focus:text-foreground">
+           <div className="flex items-center gap-2">
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+             Add / Reconnect Account
+           </div>
+        </SelectItem>
       </SelectContent>
     </Select>
   );

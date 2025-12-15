@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { performInitialSync } from '@/lib/utils/sync/aurinkoEmailSync';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -37,6 +38,10 @@ export async function GET(req: NextRequest) {
 
     const tokenData = await tokenResponse.json();
 
+    // Note: Aurinko manages the refresh token internally if the "Keep all tokens refreshed" setting is enabled in the Aurinko Portal.
+    // Therefore, we may not receive a 'refreshToken' in this response, and that is expected.
+
+
     if (!tokenResponse.ok) {
       console.error('Aurinko Token Error:', tokenData);
       return NextResponse.json(
@@ -44,13 +49,19 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
+    
+    // Robust token extraction: Aurinko V1 usually sends camelCase, but OAuth2 is snake_case. catch both.
+    const accessToken = tokenData.accessToken || tokenData.access_token;
+    const refreshToken = tokenData.refreshToken || tokenData.refresh_token;
+    const accountId = tokenData.accountId || tokenData.account_id || tokenData.id;
 
-    // 2. NEW STEP: Fetch Account Details (Email & Provider)
+    console.log('Extracted Tokens:', { hasAccess: !!accessToken, hasRefresh: !!refreshToken, accountId });
+
     // The token response didn't have them, so we ask the Account API.
     const accountResponse = await fetch('https://api.aurinko.io/v1/account', {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${tokenData.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 
@@ -81,19 +92,55 @@ export async function GET(req: NextRequest) {
     }
 
     // 4. Save to Database
-    const { error: dbError } = await supabase.from('email_accounts').upsert(
-      {
-        user_id: user.id,
-        aurinko_account_id: tokenData.accountId,
-        provider: accountDetails.serviceType, // 'Google' or 'Office365'
-        email_address: accountDetails.email, // Aurinko usually returns the connected email
-        access_token: tokenData.accessToken,
-        // refresh_token: tokenData.refreshToken, // Store this for long-term access
+    // FIRST: Check if this email already exists for this user to avoid duplicates
+    const { data: existingAccount } = await supabase
+      .from('email_accounts')
+      .select('id, refresh_token')
+      .eq('user_id', user.id)
+      .eq('email_address', accountDetails.email)
+      .single();
+    
+    let dbError;
+    
+    if (existingAccount) {
+      console.log('Using existing account:', existingAccount.id);
+      
+      const updates: any = {
+        aurinko_account_id: accountId, // Update ID in case it changed
+        access_token: accessToken,
+        provider: accountDetails.serviceType,
         is_active: true,
         updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id, aurinko_account_id' }
-    );
+      };
+      
+      // key fix: Only update refresh token if we got a new one
+      if (refreshToken) {
+        updates.refresh_token = refreshToken;
+      }
+      
+      const { error } = await supabase
+        .from('email_accounts')
+        .update(updates)
+        .eq('id', existingAccount.id);
+        
+      dbError = error;
+    } else {
+      console.log('Creating new account mapping');
+      const { error } = await supabase.from('email_accounts').upsert(
+        {
+          user_id: user.id,
+          aurinko_account_id: accountId,
+          provider: accountDetails.serviceType, // 'Google' or 'Office365'
+          email_address: accountDetails.email, // Aurinko usually returns the connected email
+          access_token: accessToken,
+          refresh_token: refreshToken, // Store this for long-term access
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id, aurinko_account_id' }
+      );
+      dbError = error;
+    }
 
     if (dbError) {
       console.error('Supabase Error:', dbError);
@@ -108,55 +155,17 @@ export async function GET(req: NextRequest) {
       .from('email_accounts')
       .select('id')
       .eq('user_id', user.id)
-      .eq('aurinko_account_id', tokenData.accountId)
+      .eq('aurinko_account_id', accountId)
       .single();
 
-    // 5. Sync initial emails from inbox, sent, and trash folders
+    // 5. Perform Initial Sync (Reconcile)
     if (accountData?.id) {
-      const folders = ['inbox', 'sent', 'trash'];
-      
-      // Await the sync to ensure emails are loaded before redirect
-      await Promise.all(
-        folders.map(async (folder) => {
-          try {
-            const response = await fetch(
-              `https://api.aurinko.io/v1/email/messages?q=in:${folder}&limit=50`,
-              {
-                headers: { Authorization: `Bearer ${tokenData.accessToken}` },
-              }
-            );
-            
-            if (response.ok) {
-              const messages = await response.json();
-              
-              // Batch upsert emails
-              if (messages.records && messages.records.length > 0) {
-                const { error } = await supabase.from('emails').upsert(
-                  messages.records.map((msg: any) => ({
-                    id: msg.id,
-                    account_id: accountData.id,
-                    thread_id: msg.threadId,
-                    subject: msg.subject || '(No Subject)',
-                    from_json: msg.from || { name: 'Unknown', address: 'unknown' },
-                    snippet: msg.bodySnippet || '',
-                    received_at: msg.receivedAt,
-                    folder: folder,
-                    is_read: !msg.sysLabels?.includes('unread'),
-                    updated_at: new Date().toISOString(),
-                  })),
-                  { onConflict: 'id' }
-                );
-                
-                if (error) {
-                  console.error('Failed to sync emails:', error);
-                }
-              }
-            }
-          } catch (error) {
-            console.error('Email sync error:', error);
-          }
-        })
-      );
+      try {
+        await performInitialSync(accessToken, accountId, accountData.id);
+      } catch (error) {
+        console.error('Initial sync failed (non-fatal):', error);
+        // We continue to redirect even if sync fails, as the webhook will pick up future events
+      }
     }
 
     // 6. Success! Redirect to email page

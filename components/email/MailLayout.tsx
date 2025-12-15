@@ -13,10 +13,12 @@ import {
   ShoppingCart,
   Trash2,
   Users2,
+  RefreshCw,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -35,11 +37,13 @@ import { MailDisplay } from './MailDisplay';
 import { MailList } from './MailList';
 import { Nav } from './Nav';
 import type { EmailSummary } from '@/lib/actions/emailActions';
-import { getEmailsFromDB } from '@/lib/actions/emailActions';
+import { syncRecentEmails, syncEmailAccount } from '@/lib/actions/emailActions';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/utils/supabase/client';
 import { SidebarTrigger } from '../ui/sidebar';
 import { ComposeEmailDialog } from './ComposeEmailDialog';
+import { SimulationMenu } from './SimulationMenu';
+import { useActionState } from 'react';
 
 
 interface MailLayoutProps {
@@ -67,7 +71,6 @@ export function MailLayout({
   const [mails, setMails] = React.useState<EmailSummary[]>(initialMails);
   const [selectedMailId, setSelectedMailId] = React.useState<string | null>(null);
   const [composeOpen, setComposeOpen] = React.useState(false);
-  
   const [loading, setLoading] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
   const [folderCounts, setFolderCounts] = React.useState<Record<string, number>>({
@@ -77,6 +80,8 @@ export function MailLayout({
     trash: 0,
     archive: 0,
   });
+
+  const [syncState, syncAction, syncPending] = useActionState(syncEmailAccount, null);
   
   // Handle folder changes by fetching from DB using CLIENT-SIDE Supabase
   const handleFolderChange = async (folder: string) => {
@@ -325,9 +330,82 @@ export function MailLayout({
     }
   };
 
+  const handleManualEmailsSync = async () => {
+    React.startTransition(() => syncAction(selectedAccount));
+  };
+
+  React.useEffect(() => {
+    if (!syncState) return;
+
+    if (syncState.success) {
+      toast.success('Sync complete');
+    } else if (syncState.error) {
+      toast.error(syncState.error || 'Sync failed');
+    }
+  }, [syncState]);
+
+  console.log('Sync state:',syncState);
+
+  const selectedAccountData = accounts.find(a => a.id === selectedAccount);
+  const selectedEmailAddress = selectedAccountData?.email || '';
+
   return (
     <TooltipProvider delayDuration={0}>
-      <ResizablePanelGroup
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between p-4 border-b bg-background">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-foreground">Email Manager</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              disabled={loading}
+              onClick={() => handleManualEmailsSync()}
+            >
+              <div className={syncPending ? 'animate-spin' : ''}>
+                <RefreshCw className="h-4 w-4" />
+              </div>
+              <span className="sr-only">Sync</span>
+            </Button>
+            <Separator orientation="vertical" className="mx-1 h-6" />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={loading}
+              onClick={async () => {
+                if (!selectedAccount) return;
+                toast.promise(syncRecentEmails(selectedAccount), {
+                  loading: 'Analyzing inbox for bookings... (This checks last 30 days)',
+                  success: (data) => {
+                     // refresh emails?
+                     handleFolderChange(selectedFolder);
+                     return `Analysis complete! Processed ${data.count} emails.`;
+                  },
+                  error: 'Analysis failed. Please try again.',
+                });
+              }}
+              className="gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-sparkles"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              Scan for Bookings
+            </Button>
+            {/* Simulation Menu */}
+            <SimulationMenu 
+                accountId={selectedAccount} 
+                emailAddress={selectedEmailAddress} 
+            />
+            <Button
+              onClick={() => setComposeOpen(true)}
+              size="sm"
+              className="gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+              New Email
+            </Button>
+          </div>
+        </div>
+        <ResizablePanelGroup
         direction="horizontal"
         onLayout={(sizes: number[]) => {
           document.cookie = `react-resizable-panels:layout=${JSON.stringify(
@@ -378,17 +456,16 @@ export function MailLayout({
             isCollapsed={isCollapsed}
             selectedFolder={selectedFolder}
             onSelectFolder={(folder)=>handleFolderChange(folder)}
-            onCompose={() => setComposeOpen(true)}
             links={[
               {
-                title: 'Inbox',
+                title: 'Εισερχόμενα',
                 label: String(folderCounts.inbox || 0),
                 icon: Inbox,
                 variant: selectedFolder === 'inbox' ? 'default' : 'ghost',
                 folder: 'inbox',
               },
               {
-                title: 'Sent',
+                title: 'Απεσταλμένα',
                 label: String(folderCounts.sent || 0),
                 icon: Send,
                 variant: selectedFolder === 'sent' ? 'default' : 'ghost',
@@ -402,14 +479,14 @@ export function MailLayout({
                 folder: 'junk',
               },
               {
-                title: 'Trash',
+                title: 'Κάδος',
                 label: String(folderCounts.trash || 0),
                 icon: Trash2,
                 variant: selectedFolder === 'trash' ? 'default' : 'ghost',
                 folder: 'trash',
               },
               {
-                title: 'Archive',
+                title: 'Αρχειοθετημένα',
                 label: String(folderCounts.archive || 0),
                 icon: Archive,
                 variant: selectedFolder === 'archive' ? 'default' : 'ghost',
@@ -475,6 +552,7 @@ export function MailLayout({
           <MailDisplay mail={selectedMail || null} accountId={selectedAccount} />
         </ResizablePanel>
       </ResizablePanelGroup>
+      </div>
       <ComposeEmailDialog open={composeOpen} onOpenChange={setComposeOpen} accountId={selectedAccount} />
     </TooltipProvider>
   );

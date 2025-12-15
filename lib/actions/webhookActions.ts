@@ -46,7 +46,7 @@ export async function subscribeToWebhooks(accountId: string, webhookUrl: string)
 
     console.log('📡 Aurinko response:', response);
     const responseText = await response.text();
-    console.log('📡 Aurinko response:', {
+    console.log('📡 Aurinko response text:', {
       status: response.status,
       statusText: response.statusText,
       body: responseText,
@@ -73,7 +73,7 @@ export async function subscribeToWebhooks(accountId: string, webhookUrl: string)
 /**
  * List all webhook subscriptions for an account
  */
-export async function listWebhookSubscriptions(accountId: string) {
+export async function listWebhookSubscriptions(prevState: any, accountId: string) {
   const supabase = await createClient();
 
   // Get account details
@@ -95,24 +95,22 @@ export async function listWebhookSubscriptions(accountId: string) {
     });
 
     if (!response.ok) {
-      return { success: false, error: 'Failed to list subscriptions' };
+      return { success: false, error: 'Failed to list subscriptions', data: null };
     }
 
     const subscriptions = await response.json();
-    return { success: true, data: subscriptions };
+    console.log('📡Server Subscriptions:', subscriptions);
+    return { success: true, error: null, data: subscriptions };
   } catch (error) {
     console.error('List subscriptions error:', error);
-    return { success: false, error: 'Internal error' };
+    return { success: false, error: 'Internal error', data: null };
   }
 }
 
 /**
  * Delete a webhook subscription
  */
-export async function deleteWebhookSubscription(
-  accountId: string,
-  subscriptionId: string
-) {
+export async function deleteWebhookSubscription(prevState: any, { accountId, subscriptionId }: { accountId: string, subscriptionId: string }) {
   const supabase = await createClient();
 
   // Get account details

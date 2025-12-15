@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/utils/supabase/server';
 import { createServiceClient } from '@/lib/utils/supabase/supabaseDB';
+import { processEmailForBookings } from '@/lib/utils/emailParsing';
 import crypto from 'crypto';
 
 // Webhook secret for signature verification
@@ -121,7 +122,7 @@ async function handleNewEmail(aurinkoAccountId: number, emailPayload: any) {
   // Convert to string in case the DB column is text
   const { data: account, error: accountError } = await supabase
     .from('email_accounts')
-    .select('id, access_token')
+    .select('id, access_token, user_id')
     .eq('aurinko_account_id', String(aurinkoAccountId))
     .single();
 
@@ -188,6 +189,42 @@ async function handleNewEmail(aurinkoAccountId: number, emailPayload: any) {
     console.error('Failed to insert email into database:', error);
   } else {
     console.log('✅ New email inserted:', emailData.subject, 'in folder:', folder);
+
+    // --- AI ENRICHMENT TRIGGER ---
+    const sender = emailData.from?.address?.toLowerCase() || '';
+    const subject = emailData.subject?.toLowerCase() || '';
+    
+    // Keywords often found in booking emails
+    const bookingKeywords = [
+      'reservation', 
+      'booking', 
+      'confirmed', 
+      'confirmation', 
+      'cancelled', 
+      'cancellation',
+      'simulate', // Explicit support for simulator
+      'simulation'
+    ];
+
+    const isBookingPlatform = 
+      sender.includes('airbnb.com') ||
+      sender.includes('booking.com') ||
+      sender.includes('vrbo.com') ||
+      sender.includes('expedia.com');
+
+    const hasBookingKeyword = bookingKeywords.some(keyword => subject.includes(keyword));
+
+    if (isBookingPlatform || hasBookingKeyword) {
+      console.log('🤖 Booking Platform or Keyword detected, initiating AI scan...');
+      // Fire and forget (don't await to avoid blocking webhook response time too much, 
+      // though Vercel might kill it if it takes too long. 
+      // For safety, we await it since we are in a serverless function that needs to complete).
+      await processEmailForBookings(
+        { id: messageId, subject: emailData.subject },
+        account.access_token,
+        account.user_id
+      );
+    }
   }
 }
 

@@ -1,10 +1,17 @@
 'use server';
 
 import { createClient } from '../utils/supabase/server';
-import DOMPurify from 'isomorphic-dompurify';
+// import DOMPurify from 'isomorphic-dompurify';
 import { getAurinkoAuthUrl as getAuthUrl } from '../aurinko';
+import { performInitialSync } from '../utils/sync/aurinkoEmailSync';
+import { revalidatePath } from 'next/cache';
 
 // import { extractBookingDetails } from '@/lib/ai/gemini';
+
+// ------------------------------------------------------------------
+// 🧠 The Core Logic: Fetch Full Body -> AI Extraction
+import { processEmailForBookings } from '@/lib/utils/emailParsing';
+
 
 export interface EmailSummary {
   id: string;
@@ -182,6 +189,10 @@ export async function getEmailsFromDB(
   }
 }
 
+
+// 1. Helper function for delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export async function syncRecentEmails(accountId: string) {
   const supabase = await createClient();
 
@@ -191,7 +202,7 @@ export async function syncRecentEmails(accountId: string) {
   // We need the Aurinko Account ID to link data later, and the Access Token to fetch data now.
   const { data: account, error } = await supabase
     .from('email_accounts')
-    .select('access_token, aurinko_account_id')
+    .select('user_id, access_token, aurinko_account_id')
     .eq('id', accountId)
     .single();
 
@@ -201,9 +212,9 @@ export async function syncRecentEmails(accountId: string) {
   }
 
   // 2. Fetch the list of recent messages (Summary View)
-  // We limit to the last 30 days to avoid processing years of history.
+  // We limit to the last 60 days to avoid processing years of history.
   const daysAgo = new Date();
-  daysAgo.setDate(daysAgo.getDate() - 30);
+  daysAgo.setDate(daysAgo.getDate() - 60);
   const dateQuery = daysAgo.toISOString().split('T')[0].replace(/-/g, '/'); // YYYY/MM/DD
 
   const params = new URLSearchParams({
@@ -212,23 +223,36 @@ export async function syncRecentEmails(accountId: string) {
     returnIds: 'false',
   });
 
-  console.log(`📡 Fetching message list from Aurinko...`);
+  console.log(`📡 Fetching emails list from Aurinko...`);
 
-  const response = await fetch(
-    `https://api.aurinko.io/v1/email/messages?${params}`,
-    {
-      headers: {
-        Authorization: `Bearer ${account.access_token}`,
-      },
+  // 2. Fetch the list of recent messages (Summary View)
+  const fetchMessages = async (token: string) => {
+    return await fetch(`https://api.aurinko.io/v1/email/messages?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  };
+
+  let response = await fetchMessages(account.access_token);
+
+  // --- AUTOMATIC TOKEN REFRESH LOGIC ---
+  if (response.status === 401 || response.status === 403) {
+    console.warn(`⚠️ Token expired (Status ${response.status}). Attempting refresh...`);
+    try {
+      const { refreshAurinkoToken } = await import('@/lib/utils/refreshAuth');
+      const newToken = await refreshAurinkoToken(accountId);
+      console.log('🔄 Token refreshed. Retrying fetch...');
+      response = await fetchMessages(newToken);
+      // Update local token variable if needed for subsequent calls? 
+      // Actually we need to pass the new token to 'processEmailForBookings' loop below.
+      account.access_token = newToken; 
+    } catch (refreshErr) {
+      console.error('🛑 Refresh failed:', refreshErr);
+      // Disable account so UI can prompt user
+      await supabase.from('email_accounts').update({ is_active: false }).eq('id', accountId);
+      return { success: false, error: 'Connection expired. Please reconnect your account.' };
     }
-  );
-
-  if (response.status === 403) {
-    console.error(
-      '🛑 Aurinko 403: Gmail API likely not enabled or scopes invalid.'
-    );
-    return { success: false, error: 'Permission Denied' };
   }
+  // -------------------------------------
 
   if (!response.ok) {
     console.error('Aurinko List Error:', await response.text());
@@ -238,80 +262,55 @@ export async function syncRecentEmails(accountId: string) {
   const { records: emailSummaries } = await response.json();
   console.log(`✅ Found ${emailSummaries.length} emails. Processing...`);
 
+  const bookingKeywords = [
+    'reservation', 
+    'booking', 
+    'confirmed', 
+    'confirmation', 
+    'cancelled', 
+    'cancellation',
+    'simulate', 
+    'simulation'
+  ];
+
   // 3. Process each email individually
   let processedCount = 0;
   for (const summary of emailSummaries) {
+
+    // --- AI ENRICHMENT TRIGGER FILTER ---
+    const sender = summary.from?.address?.toLowerCase() || '';
+    const subject = summary.subject?.toLowerCase() || '';
+
+    const isBookingPlatform = 
+      sender.includes('airbnb.com') ||
+      sender.includes('booking.com') ||
+      sender.includes('vrbo.com') ||
+      sender.includes('expedia.com');
+
+    const hasBookingKeyword = bookingKeywords.some(keyword => subject.includes(keyword));
+
+    if (!isBookingPlatform && !hasBookingKeyword) {
+      console.log(`⏩ Skipping "${summary.subject}" - Not a booking email.`);
+      processedCount++;
+      continue;
+    }
+
+    // Add delay BEFORE processing
+    // 4000ms = 4 seconds. This keeps you under ~15 RPM safely.
+    // If you still hit limits, increase to 10000 (10s).
+    await delay(6000); // Add a delay between emails
+    
     // We pass the token we already have to avoid re-fetching it
-    await processEmailForBookings(summary, account.access_token);
+    await processEmailForBookings(summary, account.access_token, account.user_id);
     processedCount++;
   }
 
   return { success: true, count: processedCount };
 }
 
-// ------------------------------------------------------------------
-// 🧠 The Core Logic: Fetch Full Body -> AI Extraction
-// ------------------------------------------------------------------
-async function processEmailForBookings(
-  messageSummary: any,
-  accessToken: string
-) {
-  // Step A: Fetch the FULL Email Content
-  // The summary often omits the body or truncates it. We need the full HTML for the AI.
-  const response = await fetch(
-    `https://api.aurinko.io/v1/email/messages/${messageSummary.id}`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  );
 
-  if (!response.ok) {
-    console.warn(`⚠️ Failed to fetch full body for ${messageSummary.id}`);
-    return;
-  }
 
-  const fullEmail = await response.json();
-
-  // Step B: Select the best content for AI
-  // Prefer Plain Text (cheaper/cleaner), fallback to HTML if Text is missing.
-  // Note: Booking platforms often hide details in HTML tables, so HTML is actually safer for this use case.
-  const emailBody = fullEmail.body?.content || fullEmail.body?.text || '';
-
-  if (!emailBody || emailBody.length < 50) {
-    console.log(`⏩ Skipping "${fullEmail.subject}" (Body too short or empty)`);
-    return;
-  }
-
-  console.log(`🤖 Sending to Gemini: "${fullEmail.subject}"`);
-
-  // Step C: AI Extraction
-  //   const extractedData = await extractBookingDetails(
-  //     emailBody,
-  //     fullEmail.subject
-  //   );
-
-  // Step D: Handling the Result
-  //   if (!extractedData) {
-  //     console.log(`⚪ No booking data found in: "${fullEmail.subject}"`);
-  //     return;
-  //   }
-
-  // --- SUCCESS! We found a booking. ---
-  //   console.log('--------------------------------------------------');
-  //   console.log('🎉 BOOKING DETECTED!');
-  //   console.log(`👤 Guest: ${extractedData.guest_name}`);
-  //   console.log(
-  //     `💰 Price: ${extractedData.total_price} ${extractedData.currency || 'EUR'}`
-  //   );
-  //   console.log(
-  //     `📅 Dates: ${extractedData.check_in_date} -> ${extractedData.check_out_date}`
-  //   );
-  //   console.log(`🔢 Guests: ${extractedData.guest_count}`);
-  //   console.log(`🆔 Platform ID: ${extractedData.confirmation_code}`);
-  //   console.log('--------------------------------------------------');
-
-  // 2. UPDATE that booking with this rich data
-}
+// End of file (removed local function)
 
 export async function getConnectedAccounts() {
   const supabase = await createClient();
@@ -335,5 +334,46 @@ export async function getConnectedAccounts() {
   }
 
   return { success: true, data: accounts };
+}
+
+/**
+ * Manually trigger a full sync for an account.
+ * Revalidates the email dashboard to show changes instantly.
+ */
+export async function syncEmailAccount(prevState: any, accountId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  // 1. Auth Check
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Unauthorized' };
+
+  try {
+    // 2. Get Account Credentials
+    const { data: account, error } = await supabase
+      .from('email_accounts')
+      .select('access_token, aurinko_account_id, id')
+      .eq('id', accountId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (error || !account) {
+      return { success: false, error: 'Account not found' };
+    }
+
+    // 3. Perform the Sync (start -> poll -> upsert/delete)
+    await performInitialSync(
+      account.access_token,
+      account.aurinko_account_id,
+      account.id
+    );
+
+    // 4. Update UI automatically
+    revalidatePath('/dashboard/email');
+    
+    return { success: true, error: '' };
+  } catch (error) {
+    console.error('Manual sync failed:', error);
+    return { success: false, error: 'Sync failed. Please try again.' };
+  }
 }
 

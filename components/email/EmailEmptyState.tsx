@@ -2,21 +2,24 @@
 
 import { Mail, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getAurinkoAuthUrl } from '@/lib/actions/emailActions';
+// import { getAurinkoAuthUrl } from '@/lib/actions/authActions';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export function EmailEmptyState() {
   const [isConnecting, setIsConnecting] = useState(false);
-
+  const router = useRouter();
   const handleConnectAccount = async () => {
     setIsConnecting(true);
     try {
-      const result = await getAurinkoAuthUrl();
-      if (result.success && result.data) {
+      const response = await fetch('/api/aurinko/url');
+      const data = await response.json();
+      
+      if (response.ok && data.url) {
         // Redirect to Aurinko OAuth
-        window.location.href = result.data;
+        router.push(data.url);
       } else {
-        console.error('Failed to get auth URL:', result.error);
+        console.error('Failed to get auth URL:', data.error);
         setIsConnecting(false);
       }
     } catch (error) {

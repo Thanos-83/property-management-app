@@ -172,7 +172,8 @@ export const addPropertyIcalAction = async (
     })
     .select()
     .single();
-
+    // console.log('Response adding iCal URL: ', data);
+    // console.log('Error adding iCal URL: ', error);
   if (error) {
     console.log('Error adding iCal URL: ', error);
     return { error, status: 500 };
