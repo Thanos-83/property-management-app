@@ -65,11 +65,11 @@ export function MailDisplay({ mail, accountId }: MailDisplayProps) {
           const clean = DOMPurify.sanitize(result.data);
           setFullBody(clean);
         } else {
-          setFullBody('<p>Failed to load email content.</p>');
+          setFullBody(`<div class="p-4 text-red-500">Failed to load email content. Error: ${result.error || 'Unknown error'}</div>`);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(error);
-        setFullBody('<p>Error loading content.</p>');
+        setFullBody(`<div class="p-4 text-red-500">Error loading content: ${error.message}</div>`);
       } finally {
         setLoading(false);
       }

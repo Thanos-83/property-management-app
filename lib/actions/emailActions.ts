@@ -377,3 +377,32 @@ export async function syncEmailAccount(prevState: any, accountId: string): Promi
   }
 }
 
+export async function getFolderCounts(accountId: string) {
+  const supabase = await createClient();
+  const folders = ['inbox', 'sent', 'junk', 'trash', 'archive'];
+  const counts: Record<string, number> = {
+    inbox: 0,
+    sent: 0,
+    junk: 0,
+    trash: 0,
+    archive: 0
+  };
+
+  // We can run these in parallel
+  await Promise.all(
+    folders.map(async (folder) => {
+      const { count, error } = await supabase
+        .from('emails')
+        .select('*', { count: 'exact', head: true })
+        .eq('account_id', accountId)
+        .eq('folder', folder);
+      
+      if (!error && count !== null) {
+        counts[folder] = count;
+      }
+    })
+  );
+
+  return counts;
+}
+

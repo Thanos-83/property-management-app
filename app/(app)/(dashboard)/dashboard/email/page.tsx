@@ -1,60 +1,60 @@
-import { getConnectedAccounts, getEmailsFromDB } from '@/lib/actions/emailActions';
-import { Mail } from 'lucide-react';
-import { MailLayout } from '@/components/email/MailLayout';
-import { WebhookManager } from '@/components/email/WebhookManager';
-import { EmailEmptyState } from '@/components/email/EmailEmptyState';
+import { getConnectedAccounts, getEmailsFromDB } from "@/lib/actions/emailActions";
+import { MailListContainer } from "@/components/email/MailListContainer";
+import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
-export default async function EmailsPage() {
-  // 1. Fetch Accounts Server-Side
-  const accountsResult = await getConnectedAccounts();
-  const accounts = accountsResult.success && accountsResult.data ? accountsResult.data : [];
+interface PageProps {
+  searchParams: Promise<{
+    accountId?: string;
+    folder?: string;
+    search?: string;
+  }>;
+}
 
-  // If no accounts, show empty state
-  if (accounts.length === 0) {
-    return <EmailEmptyState />;
+export default async function EmailListPage({ searchParams }: PageProps) {
+  // Await searchParams before accessing properties
+  const params = await searchParams;
+  const accountId = params.accountId;
+  const folder = params.folder || 'inbox';
+  const search = params.search;
+
+  // If no account is specified, try to find one and redirect
+  if (!accountId) {
+    const { success, data: accounts } = await getConnectedAccounts();
+    if (success && accounts && accounts.length > 0) {
+      redirect(`/dashboard/email?accountId=${accounts[0].id}&folder=inbox`);
+    } else {
+        // No accounts connected state
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-zinc-50 dark:bg-zinc-900 border rounded-lg m-4">
+                <h2 className="text-2xl font-bold mb-2">No Email Accounts</h2>
+                <p className="text-muted-foreground mb-4">Connect your Google or Microsoft account to get started.</p>
+                <Link href="/dashboard/settings">
+                    <Button>Connect Account</Button>
+                </Link>
+            </div>
+        )
+    }
   }
 
-  // 2. Fetch Initial Emails (for the first account)
-  let initialMails: any[] = [];
-  const mailsResult = await getEmailsFromDB(accounts[0].id, 'inbox');
-  if (mailsResult.success && mailsResult.data) {
-    initialMails = mailsResult.data;
+  // Fetch emails
+  const { success, data: emails, error } = await getEmailsFromDB(accountId, folder, search);
+
+  if (!success) {
+      console.error('Failed to load emails:', error);
+      return (
+          <div className="p-8 text-center text-red-500">
+              Failed to load emails. Please try refreshing.
+          </div>
+      )
   }
-
-  const defaultLayout = undefined;
-  const defaultCollapsed = undefined;
-
-  // Transform accounts for UI
-  const layoutAccounts = accounts.map((acc) => ({
-    id: acc.id,
-    email: acc.email_address,
-    icon: <Mail className="h-4 w-4" />,
-  }));
-
-  // Webhook URL for development (use ngrok URL or production URL)
-  const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL || 
-    'https://parametric-angie-semischolastically.ngrok-free.dev/api/webhooks/aurinko';
 
   return (
-    <div className="flex flex-col gap-4 max-h-[calc(100vh-2rem)]">
-      {/* Development: Webhook Registration */}
-      {/* {process.env.NODE_ENV === 'development' && (
-        <WebhookManager 
-          accountId={accounts[0].id} 
-          webhookUrl={webhookUrl}
-        />
-      )} */}
-      
-      {/* Email Hub */}
-      <div className="hidden flex-col md:flex h-full">
-        <MailLayout
-          accounts={layoutAccounts}
-          defaultLayout={defaultLayout}
-          defaultCollapsed={defaultCollapsed}
-          navCollapsedSize={4}
-          initialMails={initialMails}
-        />
-      </div>
-    </div>
+    <MailListContainer 
+        initialMails={emails || []} 
+        accountId={accountId} 
+        folder={folder} 
+    />
   );
 }
