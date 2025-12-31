@@ -1,34 +1,23 @@
-import Pricing from '@/components/home/Pricing';
-import Link from 'next/link';
-import React from 'react';
-import { protocol, rootDomain } from '@/lib/utils';
-export default async function HomePage() {
-  return (
-    <div>
-      <div className='flex flex-col place-content-center'>
-        <h1 className='text-4xl font-bold text-center mt-20'>
-          Καλώς ήρθες στην αρχική σελίδα!
-        </h1>
-        <Link
-          href={`${protocol}://app.${rootDomain}`}
-          className='mt-6  text-center'>
-          Dashboard
-        </Link>
+import React from 'react'
+import Link from 'next/link'
+import { ArrowRight, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import Image from 'next/image'
+import { TextEffect } from '@/components/ui/text-effect'
+import { AnimatedGroup} from '@/components/ui/animated-group' 
+// import { HeroHeader } from "@/components/header"
+import Pricing from '@/components/home/Pricing'
+import HeroSection from '@/components/home/hero-section'
 
-        <div className='mt-8'>
-          <div className='mx-auto max-w-2xl space-y-6 text-center'>
-            <h1 className='text-center text-4xl font-semibold lg:text-5xl'>
-              Pricing that Scales with You
-            </h1>
-            <p>
-              Gemini is evolving to be more than just the models. It supports an
-              entire to the APIs and platforms helping developers and businesses
-              innovate.
-            </p>
-          </div>
-          <Pricing />
-        </div>
-      </div>
-    </div>
-  );
+export default function Home() {
+    return (
+        <>
+            <main className="overflow-hidden">
+                <HeroSection/>
+                <section>
+                    <Pricing/>
+                </section>
+            </main>
+        </>
+    )
 }

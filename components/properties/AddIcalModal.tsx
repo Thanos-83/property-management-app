@@ -79,7 +79,7 @@ export default function AddIcalModal({
         data.platform,
         data.icalUrl
       );
-
+console.log('Response:', response);
       if (response.status === 201) {
         setOpenDialog(false);
         toast.success('iCal URL added successfully');
@@ -90,6 +90,7 @@ export default function AddIcalModal({
       }
     } catch {
       toast.error('An error occurred while adding iCal URL');
+      setOpenDialog(false);
     }
     setIsLoading(false);
   }
