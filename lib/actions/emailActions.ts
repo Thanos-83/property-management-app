@@ -5,6 +5,7 @@ import { createClient } from '../utils/supabase/server';
 import { getAurinkoAuthUrl as getAuthUrl } from '../aurinko';
 import { performInitialSync } from '../utils/sync/aurinkoEmailSync';
 import { revalidatePath } from 'next/cache';
+ const { refreshAurinkoToken } = await import('../utils/refreshAuth');
 
 // import { extractBookingDetails } from '@/lib/ai/gemini';
 
@@ -141,7 +142,8 @@ export async function getEmailsFromDB(
 ): Promise<{ success: boolean; data?: EmailSummary[]; error?: string }> {
   try {
     const supabase = await createClient();
-
+    // create a delay of # seconds
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     let query = supabase
       .from('emails')
       .select('*')
@@ -238,7 +240,6 @@ export async function syncRecentEmails(accountId: string) {
   if (response.status === 401 || response.status === 403) {
     console.warn(`⚠️ Token expired (Status ${response.status}). Attempting refresh...`);
     try {
-      const { refreshAurinkoToken } = await import('@/lib/utils/refreshAuth');
       const newToken = await refreshAurinkoToken(accountId);
       console.log('🔄 Token refreshed. Retrying fetch...');
       response = await fetchMessages(newToken);
@@ -340,7 +341,7 @@ export async function getConnectedAccounts() {
  * Manually trigger a full sync for an account.
  * Revalidates the email dashboard to show changes instantly.
  */
-export async function syncEmailAccount(prevState: any, accountId: string): Promise<{ success: boolean; error?: string }> {
+export async function syncEmailAccount(accountId: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
   // 1. Auth Check
@@ -377,7 +378,7 @@ export async function syncEmailAccount(prevState: any, accountId: string): Promi
   }
 }
 
-export async function getFolderCounts(accountId: string) {
+export async function getFolderCounts( prevState: any,accountId: string) {
   const supabase = await createClient();
   const folders = ['inbox', 'sent', 'junk', 'trash', 'archive'];
   const counts: Record<string, number> = {

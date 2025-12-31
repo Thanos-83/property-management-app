@@ -31,7 +31,7 @@ export async function performInitialSync(
 
   try {
     // 1. Start Sync (limit to last 30 days for initial load speed)
-    let syncResponse = await startSync(accessToken, 30);
+    let syncResponse = await startSync(accessToken, 360);
     
 
 console.log(' 🔄 Sync Response', syncResponse);
@@ -41,7 +41,7 @@ console.log(' 🔄 Sync Response', syncResponse);
     while (!syncResponse.ready && attempts < 10) {
       console.log(`⏳ Sync not ready, waiting... (Attempt ${attempts + 1})`);
       await new Promise(r => setTimeout(r, 1000)); // Wait 1s
-      syncResponse = await startSync(accessToken, 30); // Re-check status
+      syncResponse = await startSync(accessToken, 360); // Re-check status
       attempts++;
     }
 
@@ -75,6 +75,17 @@ async function startSync(accessToken: string, daysWithin: number): Promise<SyncR
     }
   );
 
+  // const folders = await fetch(
+  //   `https://api.aurinko.io/v1/email/folders/TRASH/messages`,
+  //   {
+  //     headers: { Authorization: `Bearer ${accessToken}` },
+  //   }
+  // );
+
+  // const foldersData = await folders.json();
+  // console.log(' 🔄 Folders Data Trash length', foldersData);
+  // console.log(' 🔄 Folders Data Trash records', foldersData.records[0]);
+
   if (!response.ok) {
     throw new Error(`Failed to start sync: ${response.statusText}`);
   }
@@ -88,17 +99,25 @@ async function fetchAndUpsertMessages(
   dbAccountId: number,
   supabase: any
 ) {
-  let nextPageToken = syncUpdatedToken;
+  let pageToken: string | undefined = undefined;
   let hasMore = true;
 
   while (hasMore) {
+    const params = new URLSearchParams();
+    if (pageToken) {
+        params.append('pageToken', pageToken);
+    } else {
+        params.append('deltaToken', syncUpdatedToken);
+    }
+
     const response = await fetch(
-      `https://api.aurinko.io/v1/email/sync/updated?deltaToken=${nextPageToken}`,
+      `https://api.aurinko.io/v1/email/sync/updated?${params.toString()}&limit=50`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
 
+    // console.log('response', response);
     if (!response.ok) throw new Error('Failed to fetch updated messages');
 
     const data = await response.json();
@@ -107,34 +126,61 @@ async function fetchAndUpsertMessages(
     if (messages.length > 0) {
       console.log(`📥 Upserting ${messages.length} messages...`);
       
-      const { error } = await supabase.from('emails').upsert(
-        messages.map((msg) => ({
-          id: msg.id,
-          account_id: dbAccountId,
-          thread_id: msg.threadId,
-          subject: msg.subject || '(No Subject)',
-          from_json: msg.from || { name: 'Unknown', address: 'unknown' },
-          snippet: msg.bodySnippet || '',
-          received_at: msg.receivedAt,
-          // Simple folder mapping for now - logic can be enhanced if needed
-          folder: msg.sysLabels?.includes('trash') ? 'trash' : 
-                  msg.sysLabels?.includes('sent') ? 'sent' : 
-                  'inbox', 
-          is_read: !msg.sysLabels?.includes('unread'),
-          updated_at: new Date().toISOString(),
-        })),
-        { onConflict: 'id' }
-      );
+      const mappedEmails = messages.map((msg) => {
+            const labels = (msg.sysLabels || []).map(l => l.toLowerCase());
+            let folder = 'archive';
+            
+            if (labels.includes('trash') || labels.includes('deleted')) folder = 'trash';
+            else if (labels.includes('sent')) folder = 'sent';
+            else if (labels.includes('junk') || labels.includes('spam')) folder = 'junk';
+            else if (labels.includes('inbox')) folder = 'inbox';
+            
+            return {
+              id: msg.id,
+              account_id: dbAccountId,
+              thread_id: msg.threadId,
+              subject: msg.subject || '(No Subject)',
+              from_json: msg.from || { name: 'Unknown', address: 'unknown' },
+              snippet: msg.bodySnippet || '',
+              received_at: msg.receivedAt,
+              folder: folder,
+              is_read: !labels.includes('unread'),
+              updated_at: new Date().toISOString(),
+            };
+      });
 
-      if (error) console.error('Supabase upsert error:', error);
+      try {
+        await upsertWithRetry(supabase, 'emails', mappedEmails);
+      } catch (err) {
+          console.error('Failed to upsert batch after retries', err);
+          throw err; // Stop sync to prevent data gaps
+      }
     }
 
     if (data.nextPageToken) {
-      nextPageToken = data.nextPageToken; // Continue pagination if available
+      pageToken = data.nextPageToken; // Continue pagination if available
+      // Throttle to prevent upstream timeouts (1s)
+      await new Promise(r => setTimeout(r, 1000));
     } else {
       hasMore = false; // No more pages in this delta
     }
   }
+}
+
+// Helper for Robust Upserts
+async function upsertWithRetry(supabase: any, table: string, data: any[], attempt = 1, maxAttempts = 3) {
+    try {
+        const { error } = await supabase.from(table).upsert(data, { onConflict: 'id' });
+        if (error) throw error;
+    } catch (error) {
+        if (attempt <= maxAttempts) {
+            const delay = attempt * 1000;
+            console.warn(`⚠️ Upsert failed (Attempt ${attempt}/${maxAttempts}). Retrying in ${delay}ms...`, error);
+            await new Promise(r => setTimeout(r, delay));
+            return upsertWithRetry(supabase, table, data, attempt + 1, maxAttempts);
+        }
+        throw error;
+    }
 }
 
 async function fetchAndDeleteMessages(
@@ -143,12 +189,19 @@ async function fetchAndDeleteMessages(
   dbAccountId: number,
   supabase: any
 ) {
-  let nextPageToken = syncDeletedToken;
+  let pageToken: string | undefined = undefined;
   let hasMore = true;
 
   while (hasMore) {
+    const params = new URLSearchParams();
+    if (pageToken) {
+        params.append('pageToken', pageToken);
+    } else {
+        params.append('deltaToken', syncDeletedToken);
+    } 
+
     const response = await fetch(
-      `https://api.aurinko.io/v1/email/sync/deleted?deltaToken=${nextPageToken}`,
+      `https://api.aurinko.io/v1/email/sync/deleted?${params.toString()}`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
       }
@@ -174,7 +227,7 @@ async function fetchAndDeleteMessages(
     }
 
     if (data.nextPageToken) {
-      nextPageToken = data.nextPageToken;
+      pageToken = data.nextPageToken;
     } else {
       hasMore = false;
     }

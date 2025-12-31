@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import {
   Archive,
   ArchiveX,
+  ArrowLeft,
   Clock,
   Forward,
   MoreVertical,
@@ -32,13 +33,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { useEffect, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 interface MailDisplayProps {
   mail: EmailSummary | null;
   accountId: string; // Added prop
+  folder: string;
 }
 
-export function MailDisplay({ mail, accountId }: MailDisplayProps) {
+export function MailDisplay({ mail, accountId, folder }: MailDisplayProps) {
   const [fullBody, setFullBody] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -82,6 +85,12 @@ export function MailDisplay({ mail, accountId }: MailDisplayProps) {
     <div className="flex h-full flex-col">
       <div className="flex items-center p-2">
         <div className="flex items-center gap-2">
+          <Link href={`/dashboard/email?accountId=${accountId}&folder=${folder}`}>
+            <Button variant="ghost" size="sm" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+          </Link>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" disabled={!mail}>
@@ -180,9 +189,9 @@ export function MailDisplay({ mail, accountId }: MailDisplayProps) {
                 </AvatarFallback>
               </Avatar>
               <div className="grid gap-1">
-                <div className="font-semibold">{mail.from.name}</div>
-                <div className="line-clamp-1 text-xs">{mail.subject}</div>
-                <div className="line-clamp-1 text-xs">
+                <div className="font-semibold text-md">{mail.from.name}</div>
+                <div className="line-clamp-1 text-md">{mail.subject}</div>
+                <div className="line-clamp-1 text-sm">
                   <span className="font-medium">Reply-To:</span> {mail.from.address}
                 </div>
               </div>

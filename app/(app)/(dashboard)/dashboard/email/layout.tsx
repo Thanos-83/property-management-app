@@ -1,46 +1,48 @@
-import { getConnectedAccounts, getFolderCounts } from "@/lib/actions/emailActions";
-import { EmailShell } from "@/components/email/EmailShell";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import * as React from 'react';
+import { getConnectedAccounts, getFolderCounts } from '@/lib/actions/emailActions';
+import { EmailSidebar } from '@/components/email/EmailSidebar';
+import { EmailHeader } from '@/components/email/EmailHeader';
+import { EmailEmptyState } from '@/components/email/EmailEmptyState';
+import { WebhookManager } from '@/components/email/WebhookManager';
 
-export default async function EmailLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { success, data: accounts } = await getConnectedAccounts();
 
-  if (!success || !accounts || accounts.length === 0) {
-    // If no accounts, maybe we should still render the shell but empty?
-    // Or just let Shell handle empty accounts.
+export default async function MailLayout({ children }: { children: React.ReactNode }) {
+  // 1. Fetch Accounts
+  const { data: accounts } = await getConnectedAccounts();
+  const defaultAccount = accounts?.[0];
+  // console.log('accounts in layout', accounts);
+  // 2. Fetch Counts
+  let initialCounts: Record<string, number> = {};
+  if (defaultAccount?.id) {
+      initialCounts = await getFolderCounts(null, defaultAccount.id);
   }
-
-  // Pre-fetch counts for the first account (default view)
-  // If user switches account via URL, the client helper will re-fetch
-  let initialCounts = undefined;
-  if (accounts && accounts.length > 0) {
-      initialCounts = await getFolderCounts(accounts[0].id);
-  }
-
-  const layout = (await cookies()).get("react-resizable-panels:layout");
-  const collapsed = (await cookies()).get("react-resizable-panels:collapsed");
-
-  const defaultLayout = layout ? JSON.parse(layout.value) : undefined;
-  const defaultCollapsed = collapsed ? JSON.parse(collapsed.value) : undefined;
-
   return (
-    <EmailShell
-      accounts={(accounts || []).map(acc => ({
-        id: acc.id,
-        email: acc.email_address,
-        icon: <span className="font-bold">{acc.provider === 'Google' ? 'G' : 'O'}</span>
-      }))}
-      initialFolderCounts={initialCounts}
-      defaultLayout={defaultLayout}
-      defaultCollapsed={defaultCollapsed}
-      navCollapsedSize={4}
-    >
-      {children}
-    </EmailShell>
+   accounts?.length !==0 ? 
+    <div className="flex w-full h-screen overflow-hidden bg-background">
+      {/* Sidebar - Hidden on mobile, valid for desktop */}
+      <aside className="h-full flex-col max-w-[400px] border-r-2 border-border">
+         <EmailSidebar 
+            accounts={accounts || []} 
+         />
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex flex-col flex-1">
+        <div className="p-4">
+        <WebhookManager 
+          accountId={defaultAccount?.id} 
+          webhookUrl={process.env.NEXT_PUBLIC_WEBHOOK_URL || 'https://parametric-angie-semischolastically.ngrok-free.dev/api/webhooks/aurinko'}
+        />
+        </div>
+        <EmailHeader 
+            accountId={defaultAccount?.id} 
+            emailAddress={defaultAccount?.email_address} 
+        />
+        <main className="flex-1 overflow-hidden relative">
+            {children}
+        </main>
+      </div>
+    </div>
+   : <EmailEmptyState/>
   );
 }

@@ -51,16 +51,8 @@ export default async function EmailDetailPage({ params, searchParams }: PageProp
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="flex items-center p-2 border-b">
-        <Link href={`/dashboard/email?accountId=${accountId}&folder=${folder}`}>
-          <Button variant="ghost" size="sm" className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-        </Link>
-      </div>
       <div className="flex-1 overflow-auto">
-         <MailDisplay mail={mail} accountId={accountId || record.account_id} />
+         <MailDisplay folder={folder} mail={mail} accountId={accountId || record.account_id} />
       </div>
     </div>
   );

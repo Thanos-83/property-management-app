@@ -1,19 +1,17 @@
-'use client';
+"use client";
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
-import { MailList } from './MailList';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { MailTable } from './MailTable';
 import { createClient } from '@/lib/utils/supabase/client';
 import { EmailSummary } from '@/lib/actions/emailActions';
-import { toast } from 'sonner';
-import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
 
 interface MailListContainerProps {
-  initialMails: EmailSummary[];
-  accountId: string;
+  initialMails: Promise<{ success: boolean; data?: EmailSummary[]; error?: string }>;
+  accountId: string | undefined;
   folder: string;
 }
 
@@ -23,16 +21,28 @@ export function MailListContainer({
   folder,
 }: MailListContainerProps) {
   const router = useRouter();
-  const [mails, setMails] = React.useState<EmailSummary[]>(initialMails);
+  const searchParams = useSearchParams();
+  const searchValue = searchParams.get('search') || '';
+
+  const initialMailsResult = React.use(initialMails);
+  // Extract the actual array, defaulting to empty if failed
+  const initialEmails = initialMailsResult.success && initialMailsResult.data ? initialMailsResult.data : [];
+
+  const [mails, setMails] = React.useState<EmailSummary[]>(initialEmails);
   const [loading, setLoading] = React.useState(false);
-  const [searchValue, setSearchValue] = React.useState('');
-  
+
   // Sync state with props when server re-renders (navigation)
   React.useEffect(() => {
-    setMails(initialMails);
-    setSearchValue(''); // Reset search on folder change? Maybe better UX to keep it?
-    // Let's reset for now as typical behavior
-  }, [initialMails, folder]);
+    // If we receive a new Promise, 'initialMailsResult' updates after suspense
+    // We update local state to match the fresh data
+    if (initialMailsResult.success && initialMailsResult.data) {
+        setMails(initialMailsResult.data);
+    }else{
+      console.log('Failed to fetch emails');
+      // add a toast
+      toast.error('Failed to fetch emails');
+    }
+  }, [initialMailsResult]);
 
   // Realtime Subscription for LIST updates
   React.useEffect(() => {
@@ -147,10 +157,7 @@ export function MailListContainer({
     };
   }, [accountId, folder]);
 
-  // Client-side Search Logic (Simple filtering for now, or could trigger server params)
-  // For better UX with large lists, we should probably stick to client-side filtering if list is small,
-  // OR push search param to URL.
-  // Given the complexity, let's keep basic client filter for instant feedback on fetched list.
+  // Client-side Search Logic
   const filteredMails = searchValue 
     ? mails.filter(m => 
         m.subject.toLowerCase().includes(searchValue.toLowerCase()) || 
@@ -161,9 +168,9 @@ export function MailListContainer({
 
   return (
     <div className="flex flex-col h-full">
-         <Tabs defaultValue="all">
+         <Tabs defaultValue="all" className="h-[95%]">
             <div className="flex items-center px-4 py-2">
-              <h1 className="text-xl font-bold capitalize">{folder}</h1>
+              {/* <h1 className="text-xl font-bold capitalize">{folder}</h1> */}
               <TabsList className="ml-auto">
                 <TabsTrigger value="all" className="text-zinc-600 dark:text-zinc-200">
                   All mail
@@ -174,41 +181,34 @@ export function MailListContainer({
               </TabsList>
             </div>
             <Separator />
-            <div className="bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <form onSubmit={(e) => e.preventDefault()}>
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search" 
-                    className="pl-8" 
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                  />
-                </div>
-              </form>
+            {/* Search removed from here and moved to Shell Header */}
+            <div className="flex-1 overflow-auto h-[calc(100vh-200px)]">
+              <TabsContent value="all" className="m-0 h-full">
+                <MailTable 
+                  data={filteredMails} 
+                  selectedMailId={null} 
+                  onSelectMail={(id) => {
+                      // Navigate to detail view
+                      router.push(`/dashboard/email/${id}?folder=${folder}&accountId=${accountId}&search=${searchValue}`);
+                  }}
+                  loading={loading}
+                  accountId={accountId || ''}
+                />
+              </TabsContent>
+              <TabsContent value="unread" className="m-0 h-full">
+                <MailTable 
+                  data={filteredMails.filter(m => !m.sysLabels?.includes('seen'))} 
+                  selectedMailId={null}
+                  onSelectMail={(id) => {
+                      router.push(`/dashboard/email/${id}?folder=${folder}&accountId=${accountId}&search=${searchValue}`);
+                  }}
+                  loading={loading}
+                  accountId={accountId || ''}
+                />
+              </TabsContent>
             </div>
-            <TabsContent value="all" className="m-0">
-              <MailList 
-                items={filteredMails} 
-                selectedMailId={null} // List view doesn't highlight selected
-                onSelectMail={(id) => {
-                    // Navigate to detail view
-                    router.push(`/dashboard/email/${id}?folder=${folder}&accountId=${accountId}`);
-                }}
-                loading={loading}
-              />
-            </TabsContent>
-            <TabsContent value="unread" className="m-0">
-              <MailList 
-                items={filteredMails.filter(m => !m.sysLabels?.includes('seen'))} 
-                selectedMailId={null}
-                onSelectMail={(id) => {
-                    router.push(`/dashboard/email/${id}?folder=${folder}&accountId=${accountId}`);
-                }}
-                loading={loading}
-              />
-            </TabsContent>
           </Tabs>
+          {/* End of Tabs */}
     </div>
   );
 }

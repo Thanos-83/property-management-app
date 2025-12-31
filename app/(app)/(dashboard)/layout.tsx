@@ -15,6 +15,9 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 
 
+import { getConnectedAccounts } from '@/lib/actions/emailActions';
+
+// ... imports
 
 export default async function DashboardLayout({
   children,
@@ -28,24 +31,26 @@ export default async function DashboardLayout({
     return redirect('/auth/login');
   }
 
-    const headerList =await headers();
+  const { data: accounts } = await getConnectedAccounts();
+
+  const headerList =await headers();
   const pathname =  headerList.get("x-current-path");
-console.log('Pathname in Dashboard layout: ',pathname);
+
   return (
     <html lang='en'>
       <body>
         <NuqsAdapter>
-          <div className=''>
+          {/* <div className=''> */}
             <SidebarProvider className=''>
-              <AppSidebar />
-              <SidebarInset className='overflow-hidden'>
+              <AppSidebar accounts={accounts || []} />
+              <SidebarInset className='h-screen overflow-hidden !rounded-none !m-0 '>
                 {!pathname?.split("/").includes("email") && 
                 <DashboardHeader />}
                 {children}
               </SidebarInset>
             </SidebarProvider>
             <Toaster richColors position='top-right' />
-          </div>
+          {/* </div> */}
           <Toaster richColors position='top-right' />
         </NuqsAdapter>
       </body>

@@ -99,7 +99,7 @@ export async function listWebhookSubscriptions(prevState: any, accountId: string
     }
 
     const subscriptions = await response.json();
-    console.log('📡Server Subscriptions:', subscriptions);
+    // console.log('📡Server Subscriptions:', subscriptions);
     return { success: true, error: null, data: subscriptions };
   } catch (error) {
     console.error('List subscriptions error:', error);

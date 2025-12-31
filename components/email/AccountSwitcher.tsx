@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   Select,
   SelectContent,
@@ -11,25 +12,37 @@ import {
 } from '@/components/ui/select';
 
 import { toast } from 'sonner';
+import { useSidebar } from '@/components/ui/sidebar';
 
 interface AccountSwitcherProps {
-  isCollapsed: boolean;
+  isCollapsed?: boolean;
   accounts: {
     id: string;
     email: string;
     icon: React.ReactNode;
   }[];
-  selectedAccount: string;
-  onAccountChange: (accountId: string) => void;
 }
 
 export function AccountSwitcher({
-  isCollapsed,
   accounts,
-  selectedAccount,
-  onAccountChange,
 }: AccountSwitcherProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { isMobile, state } = useSidebar();
+  const isCollapsed = state === 'collapsed' && !isMobile;
+
+  const urlAccountId = searchParams.get('accountId');
+  const selectedAccount = urlAccountId || accounts[0]?.id;
+
   const selected = accounts.find((account) => account.id === selectedAccount);
+
+  const handleAccountChange = (accountId: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (accountId) params.set('accountId', accountId);
+      if (searchParams.get('folder') !=='inbox') params.set('folder', 'inbox');
+      router.push(`${pathname}?${params.toString()}`);
+  };
 
   const handleAddAccount = async () => {
     toast.loading('Starting connection...');
@@ -63,7 +76,7 @@ export function AccountSwitcher({
         if (val === 'add_new_account_action') {
           handleAddAccount();
         } else {
-          onAccountChange(val);
+          handleAccountChange(val);
         }
       }}
     >

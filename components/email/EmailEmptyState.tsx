@@ -29,7 +29,7 @@ export function EmailEmptyState() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-[calc(100vh-12rem)] px-4">
+    <div className="flex flex-col items-center justify-center h-screen px-4">
       <div className="max-w-md text-center space-y-6">
         {/* Illustration */}
         <div className="relative mx-auto w-48 h-48 mb-8">

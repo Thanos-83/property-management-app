@@ -264,3 +264,12 @@ button:hover {
 .editor-code {
   @apply bg-muted text-foreground p-4 rounded-lg font-mono text-sm overflow-x-auto my-4 relative;
 }
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

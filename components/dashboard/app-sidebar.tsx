@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 import { NavMain } from '@/components/dashboard/nav-main';
-import { NavProjects } from '@/components/dashboard/nav-projects';
+// import { NavProjects } from '@/components/dashboard/nav-projects';
 import { NavSecondary } from '@/components/dashboard/nav-secondary';
 import { NavUser } from '@/components/dashboard/nav-user';
 import {
@@ -33,144 +33,108 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 
-const data = {
-  navMain: [
-    {
-      title: 'Dashboard',
-      url: '/dashboard',
-      icon: LayoutDashboard,
-      isActive: false,
-      items: [],
-    },
-    {
-      title: 'Listings',
-      url: '/dashboard/listings',
-      icon: SquareTerminal,
-      isActive: true,
-      items: [],
-    },
-    {
-      title: 'Bookings',
-      url: '/dashboard/bookings',
-      icon: NotebookPen,
-      isActive: true,
-      items: [],
-    },
-    {
-      title: 'Chats',
-      url: '/dashboard/chat',
-      icon: MessagesSquareIcon,
-      isActive: true,
-      items: [],
-    },
-    {
-      title: 'Emails',
-      url: '/dashboard/email',
-      icon: Mail,
-      isActive: true,
-      items: [],
-    },
-    {
-      title: 'Calendar',
-      url: '/dashboard/calendar',
-      icon: CalendarRange,
-      isActive: true,
-      items: [],
-    },
-    {
-      title: 'Task Management',
-      url: '#',
-      icon: Bot,
-      items: [
-        {
-          title: 'Tasks',
-          url: '/dashboard/tasks',
-        },
-        {
-          title: 'Task Members',
-          url: '/dashboard/members',
-        },
-      ],
-    },
-    // {
-    //   title: 'Documentation',
-    //   url: '#',
-    //   icon: BookOpen,
-    //   items: [
-    //     {
-    //       title: 'Introduction',
-    //       url: '#',
-    //     },
-    //     {
-    //       title: 'Get Started',
-    //       url: '#',
-    //     },
-    //     {
-    //       title: 'Tutorials',
-    //       url: '#',
-    //     },
-    //     {
-    //       title: 'Changelog',
-    //       url: '#',
-    //     },
-    //   ],
-    // },
-    // {
-    //   title: 'Settings',
-    //   url: '#',
-    //   icon: Settings2,
-    //   items: [
-    //     {
-    //       title: 'General',
-    //       url: '#',
-    //     },
-    //     {
-    //       title: 'Team',
-    //       url: '#',
-    //     },
-    //     {
-    //       title: 'Billing',
-    //       url: '#',
-    //     },
-    //     {
-    //       title: 'Limits',
-    //       url: '#',
-    //     },
-    //   ],
-    // },
-  ],
-  navSecondary: [
-    {
-      title: 'Home',
-      url: `${process.env.NEXT_PUBLIC_URL}`,
-      icon: HouseIcon,
-    },
-    {
-      title: 'Feedback',
-      url: '#',
-      icon: Send,
-    },
-  ],
-  projects: [
-    {
-      name: 'Design Engineering',
-      url: '#',
-      icon: Frame,
-    },
-    {
-      name: 'Sales & Marketing',
-      url: '#',
-      icon: PieChart,
-    },
-    {
-      name: 'Travel',
-      url: '#',
-      icon: Map,
-    },
-  ],
-};
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  accounts?: { id: string }[];
+}
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ accounts, ...props }: AppSidebarProps) {
+  const defaultAccountId = accounts?.[0]?.id;
+  const emailUrl = defaultAccountId 
+    ? `/dashboard/email?folder=inbox&accountId=${defaultAccountId}` 
+    : '/dashboard/email';
+
+  const data = {
+    navMain: [
+      {
+        title: 'Dashboard',
+        url: '/dashboard',
+        icon: LayoutDashboard,
+        isActive: false,
+        items: [],
+      },
+      {
+        title: 'Listings',
+        url: '/dashboard/listings',
+        icon: SquareTerminal,
+        isActive: true,
+        items: [],
+      },
+      {
+        title: 'Bookings',
+        url: '/dashboard/bookings',
+        icon: NotebookPen,
+        isActive: true,
+        items: [],
+      },
+      {
+        title: 'Chats',
+        url: '/dashboard/chat',
+        icon: MessagesSquareIcon,
+        isActive: true,
+        items: [],
+      },
+      {
+        title: 'Emails',
+        url: emailUrl, // Dynamic URL
+        icon: Mail,
+        isActive: true,
+        items: [],
+      },
+      {
+        title: 'Calendar',
+        url: '/dashboard/calendar',
+        icon: CalendarRange,
+        isActive: true,
+        items: [],
+      },
+      // ... keep specific complex items or static ones if they don't depend on props
+      // Re-copying the static structure below for completeness
+      {
+        title: 'Task Management',
+        url: '#',
+        icon: Bot,
+        items: [
+          {
+            title: 'Tasks',
+            url: '/dashboard/tasks',
+          },
+          {
+            title: 'Task Members',
+            url: '/dashboard/members',
+          },
+        ],
+      },
+    ],
+    navSecondary: [
+      {
+        title: 'Home',
+        url: `${process.env.NEXT_PUBLIC_URL}`,
+        icon: HouseIcon,
+      },
+      {
+        title: 'Feedback',
+        url: '#',
+        icon: Send,
+      },
+    ],
+    projects: [
+      {
+        name: 'Design Engineering',
+        url: '#',
+        icon: Frame,
+      },
+      {
+        name: 'Sales & Marketing',
+        url: '#',
+        icon: PieChart,
+      },
+      {
+        name: 'Travel',
+        url: '#',
+        icon: Map,
+      },
+    ],
+  };
   return (
     <Sidebar variant='inset' {...props}>
       <SidebarHeader>
@@ -192,7 +156,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+        {/* <NavProjects projects={data.projects} /> */}
         <NavSecondary items={data.navSecondary} className='mt-auto' />
       </SidebarContent>
       <SidebarFooter>
