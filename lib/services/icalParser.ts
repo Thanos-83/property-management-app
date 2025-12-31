@@ -41,7 +41,7 @@ export class IcalParser {
       // Handle local development URLs (fake iCal files)
       const url = icalUrl.startsWith('/')
         ? `${
-            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+            process.env.NEXT_PUBLIC_BASE_URL || 'https://app.myapp.site:3000'
           }${icalUrl}`
         : icalUrl;
 

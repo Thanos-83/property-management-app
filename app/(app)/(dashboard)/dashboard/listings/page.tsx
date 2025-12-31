@@ -3,33 +3,8 @@ import { PropertyTypesApi } from '@/types/propertyTypes';
 // import { getPropertiesDataAction } from '@/lib/actions/propertiesActions';
 import Property from '@/components/properties/Property';
 import { cookies } from 'next/headers';
-// import dynamic from 'next/dynamic';
+import {protocol, rootDomain} from '@/lib/utils';
 
-// const Property = dynamic(() => import('@/components/properties/Property'));
-
-// const fetchProperties = async () => {
-//   // Test API call with proper cookie forwarding from server component
-//   const cookieStore = await cookies();
-//   const cookieHeader = cookieStore
-//     .getAll()
-//     .map((cookie) => `${cookie.name}=${cookie.value}`)
-//     .join('; ');
-
-//   console.log('Making API call from server component with cookies...');
-
-//   const response = await fetch(`http://localhost:3000/api/properties`, {
-//     headers: {
-//       Cookie: cookieHeader,
-//     },
-//     next: {
-//       tags: ['properties'],
-//     },
-//   });
-
-//   const { properties } = await response.json();
-
-//   return properties;
-// };
 
 export default async function DashboardListingsPage() {
   // const { properties } = await getPropertiesDataAction();
@@ -45,13 +20,20 @@ export default async function DashboardListingsPage() {
 
   // console.log('Making API call from server component with cookies...');
 
-  const response = await fetch(`http://localhost:3000/api/properties`, {
+if (process.env.NODE_ENV === 'development') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
+  const baseUrl = `${protocol}://app.${rootDomain}`;
+  console.log('Base URL:', baseUrl);
+  const response = await fetch(`${baseUrl}/api/properties/`, {
     headers: {
       Cookie: cookieHeader,
     },
     next: {
       tags: ['properties'],
     },
+    cache: 'no-store',
   });
 
   const { properties } = await response.json();

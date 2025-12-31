@@ -66,6 +66,7 @@ export class SyncService {
     let updatedBookings = 0;
     const errors: string[] = [];
 
+    console.log('Syncing iCal URL:', icalSource);
     try {
       // Fetch and parse iCal data
       const parsedEvents = await IcalParser.fetchAndParseIcal(
