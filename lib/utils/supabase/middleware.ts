@@ -51,7 +51,7 @@ export async function updateSession(request: NextRequest) {
     // error: userError,
   } = await supabase.auth.getUser();
 
-  console.log('👤 User in updateSession:', user?.email || 'No user');
+  // console.log('👤 User in updateSession:', user?.email || 'No user');
 
   // if (
   //   !user &&

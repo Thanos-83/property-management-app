@@ -49,11 +49,11 @@ export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const subdomain = extractSubdomain(request);
 
-  console.log('=== MIDDLEWARE START ===');
-  console.log('Pathname:', pathname);
-  console.log('Search:', search);
-  console.log('Subdomain:', subdomain);
-  console.log('Url:', request.url);
+  // console.log('=== MIDDLEWARE START ===');
+  // console.log('Pathname:', pathname);
+  // console.log('Search:', search);
+  // console.log('Subdomain:', subdomain);
+  // console.log('Url:', request.url);
 
   const sessionResponse = await updateSession(request);
 
@@ -93,7 +93,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next({headers: sessionResponse.headers});
     } else {
       const { error } = await supabase.auth.signOut({ scope: 'local' });
-      console.log('Error: ', error);
+      // console.log('Error: ', error);
       if (!pathname.startsWith('/auth')) {
         return NextResponse.redirect(new URL('/auth/login', request.url));
       }
@@ -104,7 +104,7 @@ export async function middleware(request: NextRequest) {
 
   // Add this AFTER the app subdomain logic:
   if (subdomain === 'collaborators') {
-    console.log('User info in collaborators tenant: ', userInfo?.app_metadata);
+    // console.log('User info in collaborators tenant: ', userInfo?.app_metadata);
     if (userInfo && userInfo.app_metadata.role === 'member') {
       // Keep the original pathname - don't force it to /dashboard
       if (
