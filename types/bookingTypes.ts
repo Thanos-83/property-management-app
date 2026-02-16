@@ -7,6 +7,13 @@ export interface BookingEvent {
   start_date: string; // ISO date string
   end_date: string; // ISO date string
   guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
+  adults?: number;
+  children?: number;
+  total_payout?: number;
+  booking_notes?: string;
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed' | string;
   created_at: string;
   updated_at: string;
   properties: { id: string; title: string; owner_id: string };
@@ -75,3 +82,11 @@ export type CalendarData =
       error?: string;
       status?: number;
     };
+
+export interface TableBooking extends BookingEvent {
+  property: {
+    title: string;
+    location?: string;
+  };
+}
+

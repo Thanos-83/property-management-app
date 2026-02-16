@@ -3,7 +3,7 @@
 import { createClient } from '../utils/supabase/server';
 
 import { taskSchema, TaskSchemaType } from '@/lib/schemas/task';
-import { revalidateTag } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 export const fetchTasksAction = async () => {
   try {
@@ -103,8 +103,8 @@ export const addTaskAction = async (taskData: TaskSchemaType) => {
     }
 
     // Revalidate tasks tag to update UI
-    revalidateTag('tasks');
-    // revalidatePath('/dashboard/tasks');
+    // revalidateTag('tasks');
+    // revalidatePath('/dashboard/bookings');
 
     return { data, status: 201 };
   } catch (error) {

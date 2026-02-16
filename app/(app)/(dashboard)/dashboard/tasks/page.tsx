@@ -7,7 +7,7 @@ async function TasksPage() {
   const tasksResult = await fetchTasksAction();
   // Check if the result is an array (successful fetch)
   const tasks = Array.isArray(tasksResult) ? tasksResult : [];
-  console.log('tasks: ', tasks);
+  console.log('tasks: ', tasks && tasks[0]);
 
   return (
     <div className='group flex-1 overflow-y-auto p-4'>
@@ -23,8 +23,6 @@ async function TasksPage() {
           Error loading tasks: {tasksResult.error}
         </div>
       )}
-
-      
     </div>
   );
 }

@@ -28,6 +28,7 @@ import { PlusIcon } from 'lucide-react';
 import StepOne from './StepOne';
 import StepTwo, { StepTwoRef } from './StepTwo';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { useRouter } from 'next/navigation';
 
 type Property = {
   id: string;
@@ -46,21 +47,47 @@ type TaskPriorities = {
   priority_color: string;
 };
 
-export default function AddTaskModal() {
-  const [open, setOpen] = useState(false);
+import { Calendar, Home, Loader2, User } from 'lucide-react';
+
+// ... (props interfaces)
+
+export default function AddTaskModal({
+  bookingId, 
+  propertyId,
+  guestName,
+  propertyTitle,
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
+  hideTrigger = false
+}: {
+  bookingId?: string, 
+  propertyId?: string,
+  guestName?: string,
+  propertyTitle?: string,
+  open?: boolean,
+  onOpenChange?: (open: boolean) => void,
+  hideTrigger?: boolean
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = typeof controlledOpen !== 'undefined';
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled && setControlledOpen ? setControlledOpen : setInternalOpen;
+
+  // ... (rest of state)
   const [properties, setProperties] = useState<Property[]>([]);
   const [taskMembers, setTaskMembers] = useState<TaskMember[]>([]);
   const [taskPriorities, setTaskPriorities] = useState<TaskPriorities[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 2;
   const stepTwoRef = React.useRef<StepTwoRef>(null);
+  const router = useRouter();  
 
   const defaultValues: TaskSchemaType = {
     type: '',
     scheduled_date: '',
     notes: '',
     team_member_id: null,
-    property_id: '',
+    property_id: propertyId || '',
     status: 'pending',
     priority: 1,
     assigner_id: '',
@@ -91,26 +118,36 @@ export default function AddTaskModal() {
 
     fetchUserData();
     async function fetchProperties() {
-      const response = await getPropertiesDataAction();
-      if (response.status === 200 && response.properties) {
-        setProperties(response.properties);
-      } else {
+      try {
+        const response = await getPropertiesDataAction();
+        if (response && response.status === 200 && response.properties) {
+          setProperties(response.properties);
+        } else {
+          toast.error('Failed to load properties');
+        }
+      } catch (error) {
+        console.error('Error fetching properties:', error);
         toast.error('Failed to load properties');
       }
     }
     fetchProperties();
 
     async function fetchTaskMembers() {
-      const response = await getTaskMembersAction();
-      if (response.status === 200 && response.members) {
-        const members = response.members.map((member) => {
-          return {
-            id: member.id,
-            name: member.first_name + ' ' + member.last_name,
-          };
-        });
-        setTaskMembers(members);
-      } else {
+      try {
+        const response = await getTaskMembersAction();
+        if (response && response.status === 200 && response.members) {
+          const members = response.members.map((member) => {
+            return {
+              id: member.id,
+              name: member.first_name + ' ' + member.last_name,
+            };
+          });
+          setTaskMembers(members);
+        } else {
+          toast.error('Failed to fetch task members');
+        }
+      } catch (error) {
+        console.error('Error fetching task members:', error);
         toast.error('Failed to fetch task members');
       }
     }
@@ -118,13 +155,17 @@ export default function AddTaskModal() {
 
     // console.log('Iam here 1');
     async function fetchTaskPriorities() {
-      const response = await fetchTaskPrioritiesAction();
+      try {
+        const response = await fetchTaskPrioritiesAction();
+        // console.log('Iam here 2');
 
-      // console.log('Iam here 2');
-
-      if (!response.error && response.data) {
-        setTaskPriorities(response.data);
-      } else {
+        if (response && !response.error && response.data) {
+          setTaskPriorities(response.data);
+        } else {
+          toast.error('Failed to fetch task priorities');
+        }
+      } catch (error) {
+        console.error('Error fetching task priorities:', error);
         toast.error('Failed to fetch task priorities');
       }
     }
@@ -261,6 +302,7 @@ export default function AddTaskModal() {
         priority: data.priority,
         status: 'pending',
         subtasks: data.subtasks,
+        booking_id: bookingId,
       };
 
       const response = await addTaskAction(payload);
@@ -277,6 +319,7 @@ export default function AddTaskModal() {
 
           toast.success('Task added successfully');
           form.setValue('assigner_id', user?.id);
+          router.refresh();
         }
         setOpen(false);
         setCurrentStep(1);
@@ -291,22 +334,39 @@ export default function AddTaskModal() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant='outline'>
-          <PlusIcon className='-ms-1 opacity-60' size={16} aria-hidden='true' />
-          Create Task
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button variant='outline' className='w-full max-w-xs'>
+            <PlusIcon className='-ms-1 opacity-60' size={16} aria-hidden='true' />
+            Create Task
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className='sm:max-w-2xl'>
         <DialogHeader>
-          <VisuallyHidden asChild>
-            <DialogTitle>Add New Task</DialogTitle>
-          </VisuallyHidden>
-          <VisuallyHidden asChild>
-            <DialogDescription>Add task info</DialogDescription>
-          </VisuallyHidden>
+          <DialogTitle>Add New Task</DialogTitle>
+          {/* <DialogDescription>
+            Create a new task for your team.
+          </DialogDescription> */}
+          
+          {bookingId && guestName && propertyTitle && (
+            <div className="mt-2 flex items-center gap-3 rounded-md bg-muted/50 p-2 text-xs border border-muted-foreground/10">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <User className="h-3.5 w-3.5" />
+                <span className="font-medium text-foreground">{guestName}</span>
+              </div>
+              <div className="h-3 w-[1px] bg-border" />
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Home className="h-3.5 w-3.5" />
+                <span className="font-medium text-foreground">{propertyTitle}</span>
+              </div>
+            </div>
+          )}
+        </DialogHeader>
+
+        <div className='py-2'>
           {/* Step indicator */}
-          <div className='flex items-center justify-center mb-6'>
+          <div className='flex items-center justify-center mb-2'>
             {Array.from({ length: totalSteps }).map((_, index) => (
               <React.Fragment key={index}>
                 <div
@@ -332,7 +392,7 @@ export default function AddTaskModal() {
               </React.Fragment>
             ))}
           </div>
-        </DialogHeader>
+        </div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
             {/* Step 1: Basic Task Information */}
@@ -342,6 +402,7 @@ export default function AddTaskModal() {
                 properties={properties}
                 taskMembers={taskMembers}
                 taskPriorities={taskPriorities}
+                bookingId={bookingId}
               />
             )}
 

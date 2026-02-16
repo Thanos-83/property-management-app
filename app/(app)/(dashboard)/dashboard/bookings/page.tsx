@@ -1,20 +1,18 @@
-import { createClient } from '@/lib/utils/supabase/server';
+import React from 'react';
+import { fetchBookingsAction } from '@/lib/actions/bookingActions';
+import BookingsTable from '@/components/bookings/BookingsTable';
+import { TableBooking } from '@/types/bookingTypes';
 
-const fetchBookings = async () => {
-  const supabase = await createClient();
-  const response = await supabase.from('bookings').select('').limit(1);
-  return response;
-};
-
-async function Bookings() {
-  const bookings = await fetchBookings();
-  console.log('Bookings: ', bookings);
+export default async function BookingsPage() {
+  const bookingsResult = await fetchBookingsAction();
+  const bookings = Array.isArray(bookingsResult)
+    ? (bookingsResult as TableBooking[])
+    : [];
 
   return (
     <div className='group flex-1 overflow-y-auto p-4'>
-      <h1 className='text-2xl font-bold mb-4'>Bookings Page</h1>
+      <h1 className='text-2xl font-bold mb-4'>Bookings</h1>
+      <BookingsTable data={bookings} />
     </div>
   );
 }
-
-export default Bookings;

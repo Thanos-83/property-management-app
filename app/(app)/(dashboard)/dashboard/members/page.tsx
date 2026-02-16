@@ -1,34 +1,31 @@
 import AddTaskMemberModal from '@/components/members/AddTaskMemberModal';
 import { createClient } from '@/lib/utils/supabase/server';
-import { cookies } from 'next/headers';
+import { createServiceClient } from '@/lib/utils/supabase/supabaseDB';
+import { unstable_cache } from 'next/cache';
 
 async function MembersPage() {
-  // You can modify this to pass a default or selected propertyId as needed
   const supabase = await createClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  // console.log('User Session: ', session);
   console.log('User Data in Members Page: ', user ? user.email : 'No user');
 
-  // Test API call with proper cookie forwarding from server component
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join('; ');
-  // const members = await getMembers(user ? user.id : '');
-  const response = await fetch('http://myapp.site:3000/api/members', {
-    headers: {
-      Cookie: cookieHeader,
+  const getMembers = unstable_cache(
+    async (userId: string) => {
+      const supabase = createServiceClient();
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('inviter_id', userId);
+      if (error) throw error;
+      return data;
     },
-    next: {
-      tags: ['members'],
-    },
-  });
+    ['team_members'],
+    { tags: ['members'] }
+  );
 
-  const { data: members } = await response.json();
+  const members = user ? await getMembers(user.id) : [];
   console.log('Members: ', members);
 
   return (
@@ -38,23 +35,21 @@ async function MembersPage() {
         <AddTaskMemberModal />
       </div>
 
-      {/* Test Edge Function Component */}
       <div className=''>
         <h4>List with all team members will go here!</h4>
-        {members ? (
+        {members && members.length > 0 ? (
           <div>
             <ul>
-              {members &&
-                members?.map((member) => {
-                  return (
-                    <li key={member.id}>
-                      {member.email}
-                      <span className='ml-4'>{member.member_role}</span>
+              {members.map((member) => {
+                return (
+                  <li key={member.id}>
+                    {member.email}
+                    <span className='ml-4'>{member.member_role}</span>
 
-                      <span className='ml-4'>{member.status}</span>
-                    </li>
-                  );
-                })}
+                    <span className='ml-4'>{member.status}</span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : (

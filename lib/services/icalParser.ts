@@ -36,22 +36,70 @@ export class IcalParser {
   /**
    * Fetch and parse iCal data from a URL
    */
+  /**
+   * Fetch and parse iCal data from a URL
+   */
   static async fetchAndParseIcal(icalUrl: string): Promise<ParsedIcalEvent[]> {
     try {
-      // Handle local development URLs (fake iCal files)
-      const url = icalUrl.startsWith('/')
-        ? `${
-            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-          }${icalUrl}`
-        : icalUrl;
+      let icalData: string | undefined;
 
-      const response = await fetch(url);
+      // Handle local files directly from filesystem when running on server
+      if (typeof window === 'undefined') {
+        let relativePath: string | null = null;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (icalUrl.startsWith('/')) {
+          relativePath = icalUrl;
+        } else if (icalUrl.startsWith('http')) {
+          try {
+            const urlObj = new URL(icalUrl);
+            // If the path points to our local 'icals' directory, read it directly
+            // This is a robust way to handle 'localhost', '127.0.0.1', or custom domains like 'myapp.site'
+            if (urlObj.pathname.startsWith('/icals/')) {
+              relativePath = urlObj.pathname;
+            }
+          } catch (e) {
+            // Invalid URL, ignore and proceed to fetch
+          }
+        }
+
+        if (relativePath) {
+          try {
+            const fs = await import('fs');
+            const path = await import('path');
+            
+            // Construct absolute path to the file in public directory
+            // Ensure relativePath doesn't start with / to avoid double slashes issues with path.join sometimes, 
+            // though path.join usually handles it. strict public folder access.
+            const filePath = path.join(process.cwd(), 'public', relativePath);
+            
+            // Read file directly
+            icalData = fs.readFileSync(filePath, 'utf-8');
+            // console.log(`[IcalParser] Read local file: ${filePath}`);
+          } catch (err) {
+            console.warn(`[IcalParser] Could not read local file ${relativePath} (${icalUrl}), falling back to fetch. Error:`, err);
+            // icalData remains undefined, will fall through to fetch
+          }
+        }
       }
 
-      const icalData = await response.text();
+      // If we haven't read the data yet (client-side or fallback), fetch it
+      if (!icalData) {
+        const url = icalUrl.startsWith('/')
+          ? `${
+              process.env.NEXT_PUBLIC_BASE_URL || 'https://app.myapp.site:3000'
+            }${icalUrl}`
+          : icalUrl;
+
+        // console.log(`[IcalParser] Fetching URL: ${url}`);
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        icalData = await response.text();
+      }
+
       return this.parseIcalData(icalData);
     } catch (error) {
       console.error('Error fetching iCal data:', error);

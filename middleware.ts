@@ -56,20 +56,15 @@ export async function middleware(request: NextRequest) {
   console.log('Url:', request.url);
 
   const sessionResponse = await updateSession(request);
+
+    sessionResponse.headers.set("x-current-path", request.nextUrl.pathname);
+
   // Get user AFTER updateSession
   const supabase = await createClient();
   const {
     data: { user: userInfo },
   } = await supabase.auth.getUser();
-  // console.log(
-  //   'User Metadata AFTER updateSession:',
-  //   userInfo?.user_metadata || 'No user'
-  // );
-
-  // console.log(
-  //   'App Metadata AFTER updateSession:',
-  //   userInfo?.app_metadata || 'No user'
-  // );
+ 
 
   if (!subdomain) {
     if (pathname.startsWith('/dashboard') || pathname.startsWith('/member')) {
@@ -77,10 +72,11 @@ export async function middleware(request: NextRequest) {
     } else {
       if (pathname.startsWith('/auth')) {
         return NextResponse.redirect(
-          new URL('http://app.myapp.site:3000/auth/login', request.url)
+          new URL('https://app.myapp.site:3000/auth/login', request.url)
         );
       }
-      return NextResponse.next();
+      // return NextResponse.next();
+      return sessionResponse;
     }
   }
 
@@ -92,9 +88,9 @@ export async function middleware(request: NextRequest) {
         pathname === '/login' ||
         pathname === '/register'
       ) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        return NextResponse.redirect(new URL('/dashboard', request.url), {headers: sessionResponse.headers});
       }
-      return NextResponse.next();
+      return NextResponse.next({headers: sessionResponse.headers});
     } else {
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       console.log('Error: ', error);
@@ -102,7 +98,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/auth/login', request.url));
       }
 
-      return NextResponse.next();
+      return NextResponse.next({headers: sessionResponse.headers});
     }
   }
 
@@ -117,16 +113,16 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith('/register')
       ) {
         // Only redirect root to dashboard
-        return NextResponse.redirect(new URL('/member/tasks', request.url));
+        return NextResponse.redirect(new URL('/member/tasks', request.url), {headers: sessionResponse.headers});
       }
       // For all other paths, let them through as-is
-      return NextResponse.next();
+      return NextResponse.next({headers: sessionResponse.headers});
     } else {
       // Not authenticated or not a member - REDIRECT to login
       if (!pathname.startsWith('/login') && !pathname.startsWith('/register')) {
         return NextResponse.redirect(new URL('/login', request.url)); // Changed to redirect
       }
-      return NextResponse.next();
+      return NextResponse.next({headers: sessionResponse.headers});
     }
   }
   return sessionResponse;
