@@ -102,6 +102,10 @@ export function AppSidebar({ accounts, ...props }: AppSidebarProps) {
             title: 'Task Members',
             url: '/dashboard/members',
           },
+          {
+            title: 'Task Templates',
+            url: '/dashboard/task-templates',
+          },
         ],
       },
     ],

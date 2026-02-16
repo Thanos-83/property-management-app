@@ -73,6 +73,7 @@ export class SyncService {
         icalSource.ical_url
       );
 
+      console.log('Parsed events:', parsedEvents.length);
       // Process each event
       for (const event of parsedEvents) {
         try {
