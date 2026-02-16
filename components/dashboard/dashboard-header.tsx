@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,10 +12,16 @@ import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
 import React from 'react';
+import { Button } from '../ui/button';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 function DashboardHeader() {
+  // const router = useRouter();
+  const pathname = usePathname();
+  // console.log(pathname);
   return (
-    <header className='sticky top-0 border-b border-b-border flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
+    <header className={`${pathname.split('/').includes('email') ? 'hidden' : 'block'} sticky top-0 border-b border-b-border flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex items-center justify-between`}>
       <div className='flex items-center gap-2 px-4'>
         <SidebarTrigger className='-ml-1' />
         <Separator
@@ -33,6 +41,11 @@ function DashboardHeader() {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
+      </div>
+      <div className='flex items-center gap-2 px-4'>
+        {pathname === '/dashboard/task-templates' && (
+          <Button variant="outline"><Link href="/dashboard/task-templates/new-template">Add Template</Link></Button>
+        )}
       </div>
     </header>
   );

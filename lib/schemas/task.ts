@@ -23,7 +23,6 @@ export const taskSchema = z.object({
   notes: z.string().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
-
   subtasks: z.array(subtaskSchema).min(0),
 });
 

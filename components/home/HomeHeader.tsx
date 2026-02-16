@@ -1,4 +1,18 @@
-import { Book, Menu, Sunset, Trees, Zap } from 'lucide-react';
+'use client';
+
+import {
+  BadgeCheck,
+  Bell,
+  Book,
+  ChevronsUpDown,
+  CreditCard,
+  LogOut,
+  Menu,
+  Sparkles,
+  Sunset,
+  Trees,
+  Zap,
+} from 'lucide-react';
 
 import {
   Accordion,
@@ -24,6 +38,19 @@ import {
 } from '@/components/ui/sheet';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/utils/supabase/client';
+// import { NavUser } from '../dashboard/nav-user';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { signOut } from '@/lib/actions/authActions';
 
 interface MenuItem {
   title: string;
@@ -53,6 +80,12 @@ interface Navbar1Props {
   };
 }
 
+type UserType = {
+  name: string;
+  email: string;
+  avatar: string;
+};
+
 const HeaderHome = ({
   logo = {
     url: '/',
@@ -61,7 +94,7 @@ const HeaderHome = ({
     title: 'Shadcnblocks.com',
   },
   menu = [
-    { title: 'Home', url: '#' },
+    { title: 'Home', url: '/' },
     {
       title: 'Products',
       url: '#',
@@ -136,9 +169,13 @@ const HeaderHome = ({
     login: { title: 'Login', url: '/auth/login' },
     signup: { title: 'Sign up', url: '/auth/register' },
   },
-}: Navbar1Props) => {
+  user,
+}: Navbar1Props & { user: UserType | null }) => {
+  
+
+ 
   return (
-    <section className='py-4 sticky top-0 bg-background shadow z-[9999]'>
+    <section className='px-6 py-2 sticky top-0 bg-background shadow z-[9999]'>
       <div className='container mx-auto'>
         {/* Desktop Menu */}
         <nav className='hidden py-1 justify-between lg:flex'>
@@ -158,19 +195,98 @@ const HeaderHome = ({
             </Link>
             <div className='flex mx-auto items-center'>
               <NavigationMenu>
-                <NavigationMenuList>
+                <NavigationMenuList >
                   {menu.map((item) => renderMenuItem(item))}
                 </NavigationMenuList>
               </NavigationMenu>
             </div>
           </div>
           <div className='flex gap-4'>
-            <Button className='flex-1' asChild variant='outline' size='lg'>
-              <Link href={auth.login.url}>{auth.login.title}</Link>
-            </Button>
-            <Button className='flex-1' asChild size='lg'>
-              <Link href={auth.signup.url}>{auth.signup.title}</Link>
-            </Button>
+            {!user?.email ? (
+              <>
+                <Button className='flex-1' asChild variant='outline' size='lg'>
+                  <Link href={auth.login.url}>{auth.login.title}</Link>
+                </Button>
+                <Button className='flex-1' asChild size='lg'>
+                  <Link href={auth.signup.url}>{auth.signup.title}</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size='lg'
+                      variant='ghost'
+                      className='py-6 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'>
+                      <Avatar className='h-8 w-8 rounded-lg'>
+                        <AvatarImage
+                          src={user.avatar}
+                          alt={user.name}
+                        />
+                        <AvatarFallback className='rounded-lg'>
+                          CN
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className='grid flex-1 text-left text-sm leading-tight'>
+                        <span className='truncate font-medium'>
+                          {user.name}
+                        </span>
+                        <span className='truncate text-xs'>
+                          {user.email}
+                        </span>
+                      </div>
+                      <ChevronsUpDown className='ml-auto size-4' />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className='w-(--radix-dropdown-menu-trigger-width) z-[10000] min-w-56 rounded-lg'
+                    side={true ? 'bottom' : 'right'}
+                    align='end'
+                    sideOffset={4}>
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem>
+                        <Sparkles />
+                        Upgrade to Pro
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem asChild>
+                        <Link
+                          className='cursor-pointer flex items-center gap-2 w-full'
+                          href='https://app.myapp.site:3000/dashboard'>
+                          <BadgeCheck />
+                          Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link
+                          className='cursor-pointer flex items-center gap-2 w-full'
+                          href='https://app.myapp.site:3000/dashboard/pricing'>
+                          <CreditCard />
+                          Billing
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Bell />
+                        Notifications
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Button
+                        className='w-full  flex items-center justify-start'
+                        variant='ghost'
+                        onClick={() => signOut()}>
+                        <LogOut />
+                        Log out
+                      </Button>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
           </div>
         </nav>
 
@@ -178,7 +294,7 @@ const HeaderHome = ({
         <div className='block lg:hidden'>
           <div className='flex items-center justify-between'>
             {/* Logo */}
-            <a href={logo.url} className='flex items-center gap-2'>
+            <Link href={logo.url} className='flex items-center gap-2'>
               <Image
                 src={logo.src}
                 className='max-h-8'
@@ -186,8 +302,18 @@ const HeaderHome = ({
                 height={12}
                 alt={logo.alt}
               />
-            </a>
-            <Sheet>
+            </Link>
+            <div className='flex items-center gap-2'>
+              <Avatar className='h-8 w-8 rounded-lg'>
+                <AvatarImage
+                  src={user?.avatar}
+                  alt={user?.name}
+                />
+                <AvatarFallback className='rounded-lg'>
+                  CN
+                </AvatarFallback>
+              </Avatar>
+              <Sheet>
               <SheetTrigger asChild>
                 <Button variant='outline' size='icon'>
                   <Menu className='size-4' />
@@ -214,7 +340,15 @@ const HeaderHome = ({
                     className='flex w-full flex-col gap-4'>
                     {menu.map((item) => renderMobileMenuItem(item))}
                   </Accordion>
-
+                  {user ? (
+                    <div className='flex flex-col gap-3'>
+                      <DropdownMenuSeparator/>
+                      <Link className='flex items-center gap-2' href='https://app.myapp.site:3000/dashboard'>
+                          <BadgeCheck />
+                           <span> Dashboard</span>
+                      </Link>
+                    </div>
+                ) : (
                   <div className='flex flex-col gap-3'>
                     <Button asChild variant='outline'>
                       <a href={auth.login.url}>{auth.login.title}</a>
@@ -223,9 +357,11 @@ const HeaderHome = ({
                       <a href={auth.signup.url}>{auth.signup.title}</a>
                     </Button>
                   </div>
+                )}
                 </div>
               </SheetContent>
-            </Sheet>
+              </Sheet>
+            </div>
           </div>
         </div>
       </div>
@@ -238,9 +374,9 @@ const renderMenuItem = (item: MenuItem) => {
     return (
       <NavigationMenuItem key={item.title}>
         <NavigationMenuTrigger>{item.title}</NavigationMenuTrigger>
-        <NavigationMenuContent className='bg-popover text-popover-foreground'>
+        <NavigationMenuContent className=' bg-popover text-popover-foreground'>
           {item.items.map((subItem) => (
-            <NavigationMenuLink asChild key={subItem.title} className='w-80'>
+            <NavigationMenuLink asChild key={subItem.title} className='w-80 '>
               <SubMenuLink item={subItem} />
             </NavigationMenuLink>
           ))}
@@ -251,11 +387,11 @@ const renderMenuItem = (item: MenuItem) => {
 
   return (
     <NavigationMenuItem key={item.title}>
-      <NavigationMenuLink
+      <Link
         href={item.url}
         className='group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted hover:text-accent-foreground'>
         {item.title}
-      </NavigationMenuLink>
+      </Link>
     </NavigationMenuItem>
   );
 };

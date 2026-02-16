@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/utils/supabase/server';
 import { SyncService } from '@/lib/services/syncService';
+import { sync } from 'motion/react';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
       error: userError,
     } = await supabase.auth.getUser();
 
-    console.log('User from syncing properties: ', user);
+    console.log('User from syncing properties: ', user?.email);
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -22,6 +23,8 @@ export async function POST(request: NextRequest) {
 
     let results;
 
+    console.log('Syncing property with ID: ', propertyId);
+    console.log('Syncing property with syncAll: ', syncAll);
     if (syncAll) {
       // Sync all properties for the user
       results = await SyncService.syncAllUserProperties(user.id);

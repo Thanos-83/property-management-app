@@ -43,6 +43,7 @@ interface StepOneProps {
   properties: Property[];
   taskMembers: TaskMember[];
   taskPriorities: TaskPriority[];
+  bookingId?: string;
 }
 
 function StepOne({
@@ -50,6 +51,7 @@ function StepOne({
   properties,
   taskMembers,
   taskPriorities,
+  bookingId,
 }: StepOneProps) {
   return (
     <>
@@ -61,7 +63,7 @@ function StepOne({
             <FormLabel>Property</FormLabel>
             <FormControl>
               <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger className='w-full'>
+                <SelectTrigger disabled={!!bookingId} className='w-full'>
                   <SelectValue placeholder='Select property' />
                 </SelectTrigger>
                 <SelectContent>

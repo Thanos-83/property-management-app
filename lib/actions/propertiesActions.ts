@@ -71,34 +71,43 @@ export const addPropertyAction = async (propertyData: PropertySchemaType) => {
 };
 
 export const getPropertiesDataAction = async () => {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  // Auth: get the user from supabase session
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    // Auth: get the user from supabase session
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  if (userError || !user) {
-    return { error: 'Unauthorized', status: 401 };
+    if (userError || !user) {
+      return { error: 'Unauthorized', status: 401 };
+    }
+
+    // Select into database
+    const { data, error, status } = await supabase
+      .from('properties')
+      .select(
+        `
+      *,
+      property_icals(*)
+    `
+      )
+      .eq('owner_id', user?.id);
+
+    if (error) {
+      return { error: error.message, status: status, result: 'fail' };
+    }
+
+    return { properties: data, status: status, result: 'success' };
+  } catch (error) {
+    console.error('Error fetching properties:', error);
+    return {
+      error: 'Error fetching properties',
+      status: 500,
+      result: 'fail',
+    };
   }
-
-  // Select into database
-  const { data, error, status } = await supabase
-    .from('properties')
-    .select(
-      `
-    *,
-    property_icals(*)
-  `
-    )
-    .eq('owner_id', user?.id);
-
-  if (error) {
-    return { error: error, status: status, result: 'fail' };
-  }
-
-  return { properties: data, status: status, result: 'success' };
 };
 
 export const deletePropertyAction = async (id: string) => {

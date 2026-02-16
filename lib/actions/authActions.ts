@@ -81,7 +81,7 @@ export async function signInWithProvider(provider: Provider) {
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  return redirect('/auth/login');
+  redirect('/');
 }
 
 /**

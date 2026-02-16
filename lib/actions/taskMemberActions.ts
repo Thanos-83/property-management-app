@@ -399,27 +399,36 @@ export const createMemberFinalAction = async (data: CreateMemberSchemaType) => {
 };
 
 export const getTaskMembersAction = async () => {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  // Auth: get the user from supabase session
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    // Auth: get the user from supabase session
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  if (userError || !user) {
-    return { error: 'Unauthorized', status: 401 };
+    if (userError || !user) {
+      return { error: 'Unauthorized', status: 401 };
+    }
+
+    // Select into database
+    const { data, error, status } = await supabase
+      .from('team_members')
+      .select()
+      .eq('inviter_id', user?.id).eq('status', 'active');
+
+    if (error) {
+      return { error: error.message, status: status, result: 'fail' };
+    }
+
+    return { members: data, status: status, result: 'success' };
+  } catch (error) {
+    console.error('Error fetching task members:', error);
+    return {
+      error: 'Error fetching task members',
+      status: 500,
+      result: 'fail',
+    };
   }
-
-  // Select into database
-  const { data, error, status } = await supabase
-    .from('team_members')
-    .select()
-    .eq('inviter_id', user?.id);
-
-  if (error) {
-    return { error: error, status: status, result: 'fail' };
-  }
-
-  return { members: data, status: status, result: 'success' };
 };
