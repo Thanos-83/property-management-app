@@ -23,6 +23,7 @@ import { NavMain } from '@/components/dashboard/nav-main';
 // import { NavProjects } from '@/components/dashboard/nav-projects';
 import { NavSecondary } from '@/components/dashboard/nav-secondary';
 import { NavUser } from '@/components/dashboard/nav-user';
+import { User } from '@supabase/supabase-js';
 import {
   Sidebar,
   SidebarContent,
@@ -35,9 +36,10 @@ import {
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   accounts?: { id: string }[];
+  user: User;
 }
 
-export function AppSidebar({ accounts, ...props }: AppSidebarProps) {
+export function AppSidebar({ accounts, user, ...props }: AppSidebarProps) {
   const defaultAccountId = accounts?.[0]?.id;
   const emailUrl = defaultAccountId 
     ? `/dashboard/email?folder=inbox&accountId=${defaultAccountId}` 
@@ -164,7 +166,7 @@ export function AppSidebar({ accounts, ...props }: AppSidebarProps) {
         <NavSecondary items={data.navSecondary} className='mt-auto' />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   );

@@ -9,6 +9,10 @@ export const bookingSchema = z.object({
   children: z.coerce.number().min(0).default(0),
   total_payout: z.coerce.number().min(0, 'Payout must be positive').default(0),
   booking_notes: z.string().optional(),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+  property_id: z.string().optional(),
+  status: z.string().optional()
 });
 
 export type BookingSchemaType = z.infer<typeof bookingSchema>;

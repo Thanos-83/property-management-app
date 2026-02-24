@@ -6,7 +6,7 @@ import { SubmitHandler, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { taskSchema, TaskSchemaType } from '@/lib/schemas/task';
 import {
-  addTaskAction,
+  createTaskAction,
   fetchTaskPrioritiesAction,
 } from '@/lib/actions/taskActions';
 import {
@@ -30,6 +30,8 @@ import StepTwo, { StepTwoRef } from './StepTwo';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useRouter } from 'next/navigation';
 
+import { TaskPriority } from '@/types/taskTypes';
+
 type Property = {
   id: string;
   title: string;
@@ -40,33 +42,32 @@ type TaskMember = {
   name: string;
 };
 
-type TaskPriorities = {
-  id: number;
-  created_at: string;
-  priority: string;
-  priority_color: string;
-};
-
 import { Calendar, Home, Loader2, User } from 'lucide-react';
 
 // ... (props interfaces)
 
 export default function AddTaskModal({
-  bookingId, 
+  bookingId,
   propertyId,
   guestName,
   propertyTitle,
   open: controlledOpen,
   onOpenChange: setControlledOpen,
-  hideTrigger = false
+  hideTrigger = false,
+  properties = [],
+  members = [],
+  priorities = [],
 }: {
-  bookingId?: string, 
-  propertyId?: string,
-  guestName?: string,
-  propertyTitle?: string,
-  open?: boolean,
-  onOpenChange?: (open: boolean) => void,
-  hideTrigger?: boolean
+  bookingId?: string;
+  propertyId?: string;
+  guestName?: string;
+  propertyTitle?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+  properties?: Property[];
+  members?: TaskMember[];
+  priorities?: TaskPriority[];
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = typeof controlledOpen !== 'undefined';
@@ -74,9 +75,8 @@ export default function AddTaskModal({
   const setOpen = isControlled && setControlledOpen ? setControlledOpen : setInternalOpen;
 
   // ... (rest of state)
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [taskMembers, setTaskMembers] = useState<TaskMember[]>([]);
-  const [taskPriorities, setTaskPriorities] = useState<TaskPriorities[]>([]);
+  const [taskMembers, setTaskMembers] = useState<TaskMember[]>(members);
+  const [taskPriorities, setTaskPriorities] = useState<TaskPriority[]>(priorities);
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 2;
   const stepTwoRef = React.useRef<StepTwoRef>(null);
@@ -104,10 +104,10 @@ export default function AddTaskModal({
   const [isStepValid, setIsStepValid] = useState(false);
 
   // Fetch all initially nessesary data for the selects.
+  // Fetch user data for assigner_id
   useEffect(() => {
     async function fetchUserData() {
       const supabase = createClient();
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -115,71 +115,14 @@ export default function AddTaskModal({
         form.setValue('assigner_id', user?.id);
       }
     }
-
     fetchUserData();
-    async function fetchProperties() {
-      try {
-        const response = await getPropertiesDataAction();
-        if (response && response.status === 200 && response.properties) {
-          setProperties(response.properties);
-        } else {
-          toast.error('Failed to load properties');
-        }
-      } catch (error) {
-        console.error('Error fetching properties:', error);
-        toast.error('Failed to load properties');
-      }
-    }
-    fetchProperties();
-
-    async function fetchTaskMembers() {
-      try {
-        const response = await getTaskMembersAction();
-        if (response && response.status === 200 && response.members) {
-          const members = response.members.map((member) => {
-            return {
-              id: member.id,
-              name: member.first_name + ' ' + member.last_name,
-            };
-          });
-          setTaskMembers(members);
-        } else {
-          toast.error('Failed to fetch task members');
-        }
-      } catch (error) {
-        console.error('Error fetching task members:', error);
-        toast.error('Failed to fetch task members');
-      }
-    }
-    fetchTaskMembers();
-
-    // console.log('Iam here 1');
-    async function fetchTaskPriorities() {
-      try {
-        const response = await fetchTaskPrioritiesAction();
-        // console.log('Iam here 2');
-
-        if (response && !response.error && response.data) {
-          setTaskPriorities(response.data);
-        } else {
-          toast.error('Failed to fetch task priorities');
-        }
-      } catch (error) {
-        console.error('Error fetching task priorities:', error);
-        toast.error('Failed to fetch task priorities');
-      }
-    }
-
-    fetchTaskPriorities();
-    // console.log('Iam here 3');
-
-    return () => {
-      fetchUserData();
-      fetchProperties();
-      fetchTaskMembers();
-      fetchTaskPriorities();
-    };
   }, [form]);
+
+  // Update local state if props change
+  useEffect(() => {
+    setTaskMembers(members);
+    setTaskPriorities(priorities);
+  }, [members, priorities]);
 
   // console.log('Task priorities: ', taskPriorities);
 
@@ -305,7 +248,7 @@ export default function AddTaskModal({
         booking_id: bookingId,
       };
 
-      const response = await addTaskAction(payload);
+      const response = await createTaskAction(payload);
 
       if (response.status === 201) {
         const supabase = createClient();

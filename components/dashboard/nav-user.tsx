@@ -31,41 +31,21 @@ import { signOut } from '@/lib/actions/authActions';
 import { createClient } from '@/lib/utils/supabase/client';
 import { useEffect, useState } from 'react';
 
+import { User } from '@supabase/supabase-js';
+
 type UserType = {
   name: string;
   email: string;
   avatar: string;
 };
 
-export function NavUser() {
+export function NavUser({ user }: { user: User }) {
   const { isMobile } = useSidebar();
-  const supabase = createClient();
-  const [userData, setUserData] = useState<UserType>({
-    name: '',
-    email: '',
-    avatar: '',
-  });
-
-  useEffect(() => {
-    const getUserData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUserData((prev: UserType): UserType => {
-        return {
-          ...prev,
-          name: user?.user_metadata.full_name,
-          email: user?.email ? user?.email : '',
-          avatar: user?.user_metadata.avatar_url
-            ? user?.user_metadata.avatar_url
-            : '',
-        };
-      });
-      return;
-    };
-
-    getUserData();
-  }, [supabase.auth]);
+  const userData: UserType = {
+    name: user?.user_metadata.full_name || '',
+    email: user?.email || '',
+    avatar: user?.user_metadata.avatar_url || '',
+  };
   return (
     <SidebarMenu>
       <SidebarMenuItem>

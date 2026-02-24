@@ -25,13 +25,17 @@ export interface CalendarEvent {
   title: string;
   start: Date;
   end: Date;
+  type: 'booking' | 'task'; // Discriminator
+  status?: string; // 'confirmed', 'pending', 'completed'
   resource: {
     propertyId: string;
     propertyName: string;
-    platform: string;
-    bookingUid: string;
-    icalSourceId: string;
-    guestName?: string;
+    platform?: string; // Optional for tasks
+    bookingUid?: string; // Booking specific
+    icalSourceId?: string; // Booking specific
+    guestName?: string; // Booking specific
+    taskType?: string; // Task specific (Cleaning, Maintenance)
+    originalData: any; // Keep full object
   };
 }
 

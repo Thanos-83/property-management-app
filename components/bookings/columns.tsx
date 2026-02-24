@@ -226,14 +226,22 @@ export const columns: ColumnDef<TableBooking>[] = [
   {
     accessorKey: 'tasks',
     header: 'Tasks',
-    cell: ({ row }) => <TaskStatusCell 
-      tasks={(row.original as any).tasks || []} 
-      bookingId={row.original.id} 
-      bookingStatus={row.original.status} 
-      propertyId={row.original.property_id}
-      guestName={row.original.guest_name || 'Unknown Guest'}
-      propertyTitle={row.original.property?.title || 'Unknown Property'}
-    />,
+    cell: ({ row, table }) => {
+      const meta = table.options.meta as any;
+      return (
+        <TaskStatusCell
+          tasks={(row.original as any).tasks || []}
+          bookingId={row.original.id}
+          bookingStatus={row.original.status}
+          propertyId={row.original.property_id}
+          guestName={row.original.guest_name || 'Unknown Guest'}
+          propertyTitle={row.original.property?.title || 'Unknown Property'}
+          properties={meta?.properties || []}
+          members={meta?.members || []}
+          priorities={meta?.priorities || []}
+        />
+      );
+    },
   },
   {
     id: 'actions',

@@ -54,7 +54,8 @@ export const fetchCalendarDataAction = async ({
       )
     `
       )
-      .eq('properties.owner_id', user.id);
+      .eq('properties.owner_id', user.id)
+      .neq('status', 'cancelled')
 
     if (platform !== 'All') {
       query = query.eq('platform', platform);
@@ -90,6 +91,7 @@ export const fetchCalendarDataAction = async ({
         title: `Reserved - ${booking.properties.title}`,
         start: new Date(booking.start_date),
         end: new Date(booking.end_date),
+        type: 'booking',
         resource: {
           propertyId: booking.property_id,
           propertyName: booking.properties.title,
@@ -97,14 +99,81 @@ export const fetchCalendarDataAction = async ({
           guestName: booking.guest_name,
           bookingUid: booking.booking_uid,
           icalSourceId: booking.ical_source_id,
+          originalData: booking,
         },
       })
     );
 
-    // Detect conflicts
+    // Fetch Tasks
+    let tasksQuery = supabase
+      .from('tasks')
+      .select(
+        `
+        *,
+        property:properties!property_id (
+          title
+        ),
+        booking:bookings!booking_id (
+          start_date,
+          end_date,
+          platform,
+          guest_name
+        ),
+        taskTodos:task_list_item!task_list_item_task_id_fkey (
+          description,
+          is_completed,
+          sort_order,
+          completed_by_member,
+          completed_datetime,
+          id
+        ),
+        teamMember:team_members!team_member_id(
+          first_name,
+          last_name
+        )
+      `
+      )
+      .eq('assigner_id', user.id);
+
+    if (property) {
+      tasksQuery = tasksQuery.eq('property_id', property);
+    } else {
+       // logic for first property if needed, or fetch all. 
+       // The original code filtered bookings by firstProperty if no property passed.
+       // We should arguably do the same for tasks to match the view context.
+       tasksQuery = tasksQuery.eq('property_id', firstProperty);
+    }
+
+    const { data: tasks, error: tasksError } = await tasksQuery;
+    
+    if (tasksError) {
+      console.error('Error fetching tasks for calendar:', tasksError);
+      // We could return error, or just log and continue with bookings only. 
+      // Let's log and continue to avoid breaking the whole calendar.
+    }
+
+  
+
+    const taskEvents: CalendarEvent[] = (tasks || []).map((task) => ({
+      id: task.id,
+      title: task.title || task.type, // Use title or type
+      start: new Date(task.scheduled_date),
+      end: new Date(task.scheduled_date), // Tasks are point-in-time
+      type: 'task',
+      status: task.status,
+      resource: {
+        propertyId: task.property_id,
+        propertyName: task.property?.title || 'Unknown Property',
+        taskType: task.type,
+        originalData: task,
+      },
+    }));
+
+    const allEvents = [...calendarEvents, ...taskEvents];
+    // Detect conflicts (only for bookings for now, checks overlaps)
     const conflicts = detectBookingConflicts(calendarEvents);
     const bookingEvents: CalendarData = {
-      events: calendarEvents,
+      events: allEvents,
       conflicts,
       totalBookings: calendarEvents.length,
       conflictCount: conflicts.reduce(

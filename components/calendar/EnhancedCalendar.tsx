@@ -1,20 +1,23 @@
 'use client';
 
-import React, { useState, use } from 'react';
+import React, { useState, use, useCallback, useMemo } from 'react';
 import { Calendar, momentLocalizer, View, Views } from 'react-big-calendar';
 import moment from 'moment';
 import { CalendarData, CalendarEvent } from '@/types/bookingTypes';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-// import { toast } from 'sonner';
-import { AlertTriangleIcon } from 'lucide-react';
-import Image from 'next/image';
+
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { CustomEvent } from './CustomEvent';
+import { BookingDetailsSheet } from '../bookings/BookingDetailsSheet';
+import { TableBooking } from '@/types/bookingTypes';
+import { DayOverviewDialog } from './DayOverviewDialog';
+import { isSameDay } from 'date-fns';
+import { isBookingConflicting } from '@/lib/utils/calendarUtils';
+import { TaskDateHeader } from './TaskDateHeader';
+import { TaskDetailsSheet } from './TaskDetailsSheet';
+import { TaskStatusOption } from '@/types/taskTypes';
+import FilterCalendarData from './FilterCalendarData';
+import { Button } from '../ui/button';
+import { Plus } from 'lucide-react';
 
 const localizer = momentLocalizer(moment);
 
@@ -35,180 +38,224 @@ const platformIcons: Record<string, string> = {
 
 export default function EnhancedCalendar({
   bookingData,
+  properties,
+  taskStatusData,
+  taskPrioritiesData,
+  taskMembersData,
+  currentUserId,
+  filterOptionsData,
 }: {
   bookingData: Promise<CalendarData>;
+  properties: any[];
+  taskStatusData: TaskStatusOption[];
+  taskPrioritiesData: any[];
+  taskMembersData: any[];
+  currentUserId: string;
+  filterOptionsData: any[];
 }) {
   const [view, setView] = useState<View>(Views.MONTH);
   const [date, setDate] = useState(new Date());
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-    null
-  );
+  
+  // State for Booking Sheet
+  const [selectedBooking, setSelectedBooking] = useState<TableBooking | null>(null);
+  const [isBookingSheetOpen, setIsBookingSheetOpen] = useState(false);
 
-  const data = use(bookingData);
-  // console.log('Booking Data on the Client: ', data);
+  // State for Task Modal
+  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false);
 
-  // Sync all properties
+   // State for prefilling the task date
+  const [taskPrefilledDate, setTaskPrefilledDate] = useState<Date | null>(null);
 
-  // Custom event component
-  const EventComponent = ({ event }: { event: CalendarEvent }) => {
-    const isConflicted =
-      data &&
-      'events' in data &&
-      data.conflicts?.some((conflict) =>
-        conflict.conflicts.some(
-          (c) =>
-            c.booking1.platform === event.resource.platform ||
-            c.booking2.platform === event.resource.platform
-        )
-      );
 
-    return (
-      <div
-        className={`flex items-center space-x-1 text-xs p-1 rounded ${
-          isConflicted ? 'bg-red-100 border border-red-300' : ''
-        }`}
-        style={{
-          backgroundColor: isConflicted
-            ? undefined
-            : platformColors[event.resource.platform] + '20',
-          borderLeft: `3px solid ${platformColors[event.resource.platform]}`,
-        }}>
-        {platformIcons[event.resource.platform] && (
-          <Image
-            src={platformIcons[event.resource.platform]}
-            alt={event.resource.platform}
-            width={8}
-            height={8}
-            className='w-24 h-6 flex-shrink-0'
-          />
-        )}
-        <span className='truncate font-medium'>
-          {event.resource.propertyName}
-        </span>
-        {isConflicted && (
-          <AlertTriangleIcon className='w-3 h-3 text-red-500 flex-shrink-0' />
-        )}
-      </div>
+  // State for Booking Conflicting
+  const [isSelectedBookingConflicting, setIsSelectedBookingConflicting] = useState(false);
+
+  // State for the Day Dialog
+  const [dayDialogState, setDayDialogState] = useState<{
+    isOpen: boolean;
+    date: Date | null;
+    events: CalendarEvent[];
+  }>({ isOpen: false, date: null, events: [] });
+
+
+// Add the Handler for the show more button
+const handleShowMore = (events: any[], date: Date) => {
+    // Fetch ALL events (tasks + bookings) for this day
+    const allEvents = 'events' in data ? (data.events || []) : [];
+    const dailyEvents = allEvents.filter(event => 
+      isSameDay(new Date(event.start), date)
     );
+    
+    setDayDialogState({
+      isOpen: true,
+      date: date,
+      events: dailyEvents as CalendarEvent[]
+    });
   };
 
+  const data = use(bookingData);
+
+// console.log('Events data: ', data.events[0])
+  const handleSelectEvent = (event: CalendarEvent) => {
+    if (event.type === 'booking') {
+      // Transform originalData to match TableBooking (property vs properties)
+      const bookingData = event.resource.originalData;
+      const tableBooking: TableBooking = {
+        ...bookingData,
+        property: bookingData.properties // Map 'properties' to 'property'
+      };
+      setSelectedBooking(tableBooking);
+      setIsSelectedBookingConflicting((event as any).isConflicting || false);
+      setIsBookingSheetOpen(true);
+    } else if (event.type === 'task') {
+      setSelectedTask(event.resource.originalData);
+      setIsTaskSheetOpen(true);
+    }
+  };
+
+  // THE FIX: Custom Handler for "Drill Down" events
+  const handleDrillDown = useCallback((date: Date) => {
+    // 1. Manually find the events for this specific day
+    // (We have to do this because onDrillDown only gives us the date, not the events list)
+    const events = 'events' in data ? (data.events || []) : [];
+    
+    const dailyEvents = events.filter(event => 
+      isSameDay(new Date(event.start), date)
+    );
+
+    // 2. Open YOUR Dialog
+    setDayDialogState({
+      isOpen: true,
+      date: date,
+      events: dailyEvents
+    });
+    
+    // 3. Do NOT navigate anywhere. The function ends here.
+  }, [data]);
+
+  // Separate events for Grid (Bookings) and Header (Tasks)
+  const { tasks, bookings } = useMemo(() => {
+    const allEvents = data && 'events' in data ? (data.events || []) : [];
+    
+    // Tasks go to the header
+    const t = allEvents.filter(e => e.type === 'task');
+    
+    // Bookings go to the grid
+    const onlyBookings = allEvents.filter(e => e.type === 'booking');
+    // We also calculate conflicts here to pass down via the event object wrapper
+    const b = onlyBookings.map(item => ({
+      ...item,
+      isConflicting: isBookingConflicting(item, onlyBookings)
+    }));
+
+    return { tasks: t, bookings: b };
+  }, [data]);
+
+
+  // Moved handleOpenCreateTask UP and added the date parameter
+  const handleOpenCreateTask = useCallback((passedDate?: Date) => {
+    setSelectedTask(null); 
+    // setTaskPrefilledDate(passedDate || new Date()); // Store the passed date or default to today
+    setDayDialogState((prev) => ({...prev, date: passedDate || new Date()}));
+    setIsTaskSheetOpen(true); 
+  }, []);
+
+  // Define the DateHeader component here to close over 'tasks'
+  const components = useMemo(() => ({
+    event: CustomEvent,
+    month: {
+      dateHeader: ({ label, date }: { label: string, date: Date }) => (
+        <TaskDateHeader 
+          label={label} 
+          date={date} 
+          tasks={tasks} 
+          bookings={bookings} 
+          onOpenDayOverview={setDayDialogState}
+        />
+      )
+    }
+  }), [tasks, bookings, handleDrillDown, handleOpenCreateTask]);
   return (
     <div className={`space-y-4`}>
-      {/* Header with controls */}
-
-      {/* Conflicts Alert - To be removed in new separate component (Or better fully redesinged) */}
-      {/* {data &&
-        'events' in data &&
-        data.conflicts &&
-        data.conflicts.length > 0 && (
-          <div className='bg-red-50 border border-red-200 rounded-lg p-4'>
-            <div className='flex items-center space-x-2 mb-2'>
-              <AlertTriangleIcon className='w-5 h-5 text-red-500' />
-              <h3 className='font-semibold text-red-800'>
-                Booking Conflicts Detected
-              </h3>
-            </div>
-            <div className='space-y-2'>
-              {data.conflicts.map((conflict) => (
-                <div key={conflict.propertyId} className='text-sm'>
-                  <strong>{conflict.propertyName}:</strong>
-                  <ul className='ml-4 mt-1'>
-                    {conflict.conflicts.map((c, index) => (
-                      <li key={index} className='text-red-700'>
-                        {c.booking1.platform} ({c.booking1.dates}) overlaps with{' '}
-                        {c.booking2.platform} ({c.booking2.dates}) -{' '}
-                        {c.overlapDays} days
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        )} */}
-
+    <div className="flex items-center justify-between mb-4">
+      <FilterCalendarData filterOptionsData={filterOptionsData} />
+      <Button 
+        onClick={() => handleOpenCreateTask()} 
+        className="font-bold shadow-sm"
+      >
+        <Plus className="w-4 h-4 mr-2" />
+        New Task
+      </Button>
+    </div>
       {/* Calendar */}
       <div
-        className='group-has-[[data-pending]]:animate-pulse iam-here-2 bg-white rounded-lg border p-4'
-        style={{ height: '580px' }}>
+        className='group-has-[[data-pending]]:animate-pulse bg-white rounded-md border p-2'
+        style={{maxHeight: 'calc(100vh + 100px)' }}
+        >
         <Calendar
           localizer={localizer}
-          events={data && 'events' in data ? data.events || [] : []}
+          events={bookings} // ONLY show Bookings in the main grid
           startAccessor='start'
           endAccessor='end'
           view={view}
           onView={setView}
           date={date}
           onNavigate={setDate}
-          components={{
-            event: EventComponent,
+          components={components}
+          onSelectEvent={handleSelectEvent}
+          popup={false}
+          drilldownView={null}
+          onDrillDown={handleDrillDown}
+          onShowMore={(events, date) => handleShowMore(events, date)}
+          eventPropGetter={(event: CalendarEvent) => {
+            if (event.type === 'task') return {};
+            const platform = event.resource.platform || 'Unknown';
+            const color = platformColors[platform] || platformColors.Unknown;
+            return {
+              style: {
+                backgroundColor: color + '40',
+                borderColor: color,
+                color: '#000',
+              },
+            };
           }}
-          onSelectEvent={(event: CalendarEvent) => setSelectedEvent(event)}
-          popup
-          popupOffset={{ x: 30, y: 20 }}
-          eventPropGetter={(event: CalendarEvent) => ({
-            style: {
-              backgroundColor: platformColors[event.resource.platform] + '40',
-              borderColor: platformColors[event.resource.platform],
-              color: '#000',
-            },
-          })}
         />
       </div>
 
-      {/* Event Details Modal - To be removed in a new separate component*/}
-      <Dialog
-        open={!!selectedEvent}
-        onOpenChange={() => setSelectedEvent(null)}>
-        <DialogContent className='max-w-md'>
-          <DialogHeader>
-            <DialogTitle>Booking Details</DialogTitle>
-          </DialogHeader>
-          {selectedEvent && (
-            <>
-              <div className='space-y-2'>
-                <div>
-                  <strong>Property:</strong>{' '}
-                  {selectedEvent.resource.propertyName}
-                </div>
-                <div className='flex items-center space-x-2'>
-                  <strong>Platform:</strong>
-                  {platformIcons[selectedEvent.resource.platform] && (
-                    <Image
-                      src={platformIcons[selectedEvent.resource.platform]}
-                      alt={selectedEvent.resource.platform}
-                      width={20}
-                      height={20}
-                    />
-                  )}
-                  <span>{selectedEvent.resource.platform}</span>
-                </div>
-                <div>
-                  <strong>Dates:</strong>{' '}
-                  {moment(selectedEvent.start).format('DD/MM/YYYY')} -{' '}
-                  {moment(selectedEvent.end).format('DD/MM/YYYY')}
-                </div>
-                {selectedEvent.resource.guestName && (
-                  <div>
-                    <strong>Guest:</strong> {selectedEvent.resource.guestName}
-                  </div>
-                )}
-                <div>
-                  <strong>Duration:</strong>{' '}
-                  {moment(selectedEvent.end).diff(
-                    moment(selectedEvent.start),
-                    'days'
-                  )}{' '}
-                  days
-                </div>
-              </div>
-              <div className='flex justify-end mt-6'>
-                <Button onClick={() => setSelectedEvent(null)}>Close</Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Booking Details Sheet */}
+      <BookingDetailsSheet 
+        booking={selectedBooking} 
+        isOpen={isBookingSheetOpen} 
+        onOpenChange={setIsBookingSheetOpen} 
+        properties={properties}
+        isConflicting={isSelectedBookingConflicting}
+      />
+
+      {/* Task Details Sheet */}
+
+      <TaskDetailsSheet
+        task={selectedTask}
+        isOpen={isTaskSheetOpen}
+        onOpenChange={setIsTaskSheetOpen}
+        properties={properties}
+        teamMembers={taskMembersData}
+        taskStatus={taskStatusData}
+        taskPriorities={taskPrioritiesData}
+        currentUserId={currentUserId}
+        currentDate={dayDialogState.date || new Date()}
+        mode={selectedTask ? 'edit' : 'create'}
+      />
+
+      <DayOverviewDialog
+        isOpen={dayDialogState.isOpen}
+        onClose={() => setDayDialogState(prev => ({ ...prev, isOpen: false }))}
+        date={dayDialogState.date}
+        events={dayDialogState.events}
+        onSelectEvent={handleSelectEvent}
+        taskStatus={taskStatusData}
+        onAddTask={handleOpenCreateTask} 
+      />
     </div>
   );
 }

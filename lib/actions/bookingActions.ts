@@ -86,3 +86,25 @@ export const updateBookingAction = async (data: any) => {
     return { success: false, error: 'An unexpected error occurred' };
   }
 };
+
+export const deleteBookingAction = async (bookingId: string) => {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', bookingId);
+
+    if (error) {
+      console.error('Error deleting booking:', error);
+      return { success: false, error: error.message };
+    }
+
+    // revalidatePath('/dashboard/bookings');
+    // revalidateTag('bookings')
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error deleting booking:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+};

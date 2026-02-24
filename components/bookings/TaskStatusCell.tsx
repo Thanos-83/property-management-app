@@ -160,16 +160,31 @@ const calculateBadgeProps = (tasks: any[]) => {
 };
 
 
+import { TaskPriority } from '@/types/taskTypes';
+
 interface TaskStatusCellProps {
   tasks: any[];
-  bookingId: string;      // Needed for the link
-  bookingStatus: string;  // Needed to hide button if cancelled
+  bookingId: string; // Needed for the link
+  bookingStatus: string; // Needed to hide button if cancelled
   propertyId: string;
   guestName: string;
   propertyTitle: string;
+  properties: { id: string; title: string }[];
+  members: { id: string; name: string }[];
+  priorities: TaskPriority[];
 }
 
-export function TaskStatusCell({ tasks, bookingId, bookingStatus, propertyId, guestName, propertyTitle }: TaskStatusCellProps) {
+export function TaskStatusCell({
+  tasks,
+  bookingId,
+  bookingStatus,
+  propertyId,
+  guestName,
+  propertyTitle,
+  properties,
+  members,
+  priorities,
+}: TaskStatusCellProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -288,14 +303,17 @@ export function TaskStatusCell({ tasks, bookingId, bookingStatus, propertyId, gu
         </PopoverContent>
       </Popover>
 
-      <AddTaskModal 
-        bookingId={bookingId} 
-        propertyId={propertyId} 
+      <AddTaskModal
+        bookingId={bookingId}
+        propertyId={propertyId}
         guestName={guestName}
-        propertyTitle={propertyTitle} 
+        propertyTitle={propertyTitle}
         open={modalOpen}
         onOpenChange={setModalOpen}
         hideTrigger={true}
+        properties={properties}
+        members={members}
+        priorities={priorities}
       />
     </>
   );

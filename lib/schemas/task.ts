@@ -42,3 +42,32 @@ export const taskMemberSchema = z.object({
 });
 
 export type TaskMemberSchemaType = z.infer<typeof taskMemberSchema>;
+
+
+// Task Details Sheet Schema
+
+export const taskDetailsSchema = z.object({
+  taskId: z.string().min(1, "Task ID is required").optional().or(z.literal("")),
+  property_id: z.string().min(1, "Property is required"),
+  team_member_id: z.string().nullable(), // We allow 'unassigned' (converted to null) or a UUID string
+  status: z.string().min(1, "Status is required"),
+  priority: z.string().min(1, "Priority is required"),
+  scheduled_date: z.date({
+    required_error: "Scheduled date is required",
+    invalid_type_error: "That's not a valid date",
+  }),
+  notes: z.string().nullable().optional(), // Can be empty string, null, or undefined
+  taskTodos: z.array(
+    z.object({
+      id: z.string(),
+      description: z.string(),
+      is_completed: z.boolean(),
+      sort_order: z.number(),
+      completed_by_member: z.string().nullable().optional(),
+      completed_datetime: z.string().nullable().optional(),
+    })
+  )
+});
+
+// Infer the TypeScript type from the Zod Schema!
+export type TaskDetailsSchemaType = z.infer<typeof taskDetailsSchema>;

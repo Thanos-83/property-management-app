@@ -25,7 +25,9 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const supabase = createClient();
-  const { data: user } = await (await supabase).auth.getUser();
+  const {
+    data: { user },
+  } = await (await supabase).auth.getUser();
 
   if (!user) {
     return redirect('/auth/login');
@@ -38,11 +40,11 @@ export default async function DashboardLayout({
 
   return (
     <html lang='en'>
-      <body>
+      <body suppressHydrationWarning>
         <NuqsAdapter>
           {/* <div className=''> */}
             <SidebarProvider className=''>
-              <AppSidebar accounts={accounts || []} />
+              <AppSidebar accounts={accounts || []} user={user} />
               <SidebarInset className='h-screen overflow-hidden !rounded-none !m-0 '>
                 {!pathname?.split("/").includes("email") && 
                 <DashboardHeader />}
