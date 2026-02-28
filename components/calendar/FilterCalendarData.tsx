@@ -56,7 +56,6 @@ function FilterCalendarData({ filterOptionsData }: FilterDataTypes) {
   }
 
   //   ============================================
-  console.log('Is Pending: ', isPending);
 
   return (
     <div

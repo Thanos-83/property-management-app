@@ -31,9 +31,16 @@
   /* ========  */
 
   /* Priority colors */
-  --priority-low-color: oklch(69.6% 0.17 162.48);
-  --priority-medium-color: oklch(76.9% 0.188 70.08);
-  --priority-high-color: oklch(63.7% 0.237 25.331);
+  --priority-low-color: #64748b;
+  --priority-medium-color: #d97706;
+  --priority-high-color: #dc2626;
+
+  /* Task Status Colors */
+  --status-pending: #d97706;     /* amber-600 */
+  --status-accepted: #7c3aed;    /* purple-600 */
+  --status-in-progress: #2563eb; /* blue-600 */
+  --status-completed: #059669;   /* emerald-600 */
+  --status-cancelled: #dc2626;   /* red-600 */
 
   /* sidebar width */
   --sidebar-width: 260px;
@@ -43,8 +50,50 @@ button:hover {
   cursor: pointer;
 }
 
-/* Custom theme */
+/* React Big Calendar Customization */
+.rbc-month-row {
+  /* height: 115px !important; */
+  min-height: 105px !important; 
+  max-height: 105px !important;
+  /* Prevent the row from stretching if the month has fewer weeks */
+  flex: 0 0 105px !important;
+}
 
+/* Ensure the calendar container allows scrolling if the fixed rows exceed viewport height */
+.rbc-calendar {
+  height: auto !important;
+  min-height: min-content;
+}
+
+.rbc-row-content {
+  height: 100% !important;
+  display: flex;
+  flex-direction: column;
+  /* justify-content: space-between; */
+}
+
+.rbc-button-link.rbc-show-more {
+  padding: 0.25em 0.5em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.rbc-row-content>.rbc-row:has(.rbc-segment:has(.rbc-button-link.rbc-show-more)) {
+  margin-top: auto;
+  margin-bottom: 0.15rem;
+}
+
+/* Remove default padding/bg from events to allow custom styling */
+.rbc-event {
+  padding: 0 !important;
+  background-color: transparent !important;
+}
+
+.rbc-date-cell{
+  padding-right: 0 !important;
+}
+
+/* Custom theme */
 :root {
   --background: hsl(48 33.3333% 97.0588%);
   --foreground: hsl(48 19.6078% 20%);
@@ -60,7 +109,6 @@ button:hover {
   --muted-foreground: hsl(50 2.3622% 50.1961%);
   --accent: hsl(46.1538 22.807% 88.8235%);
   --accent-foreground: hsl(50.7692 19.403% 13.1373%);
-  /* --destructive: hsl(60 2.5641% 7.6471%); */
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: hsl(0 0% 100%);
   --border: hsl(50 7.5% 84.3137%);
@@ -172,6 +220,13 @@ button:hover {
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Export Status Colors to Tailwind Configuration */
+  --color-status-pending: var(--status-pending);
+  --color-status-accepted: var(--status-accepted);
+  --color-status-in-progress: var(--status-in-progress);
+  --color-status-completed: var(--status-completed);
+  --color-status-cancelled: var(--status-cancelled);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);

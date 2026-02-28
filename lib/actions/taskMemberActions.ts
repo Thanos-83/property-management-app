@@ -168,14 +168,14 @@ export const memberInvitationAction = async (payload: InvitePayload) => {
 
   // SOS: Needs to be done work with the base URL
   // const base = process.env.NEXT_PUBLIC_URL!.replace(/\/$/, '');
-  const base = `http://collaborators.myapp.site:3000`;
+  const base = `https://collaborators.myapp.site:3000`;
 
   const acceptUrl = `${base}/register?token=${rawToken}&email=${email}`;
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Welcome to Rendy.com <thanos_info@thanossbonias.site>',
+      from: 'Welcome to Rendy.com <thanos_info@cloudplatforms.space>',
       to: email,
-      subject: 'Invitation to create account!',
+      subject: 'Invitation to create account!', 
       react: InviteMemberEmail({ acceptUrl, expiresAt }),
     });
 
@@ -356,10 +356,12 @@ export const createMemberFinalAction = async (data: CreateMemberSchemaType) => {
       },
     });
 
+    console.log('Created Member Data: ', createdMemberData);
+    console.log('Error Created Member: ', errorCreatedMember);
   if (errorCreatedMember) {
     return {
       status: 'fail',
-      message: 'Error creating new Team Member',
+      message: errorCreatedMember.message,
     };
   }
 

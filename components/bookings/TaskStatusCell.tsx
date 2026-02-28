@@ -160,18 +160,40 @@ const calculateBadgeProps = (tasks: any[]) => {
 };
 
 
+import { TaskPriority, TaskStatusOption } from '@/types/taskTypes';
+import { TaskDetailsSheet } from "../calendar/TaskDetailsSheet";
+
 interface TaskStatusCellProps {
   tasks: any[];
-  bookingId: string;      // Needed for the link
-  bookingStatus: string;  // Needed to hide button if cancelled
+  bookingId: string; // Needed for the link
+  bookingStatus: string; // Needed to hide button if cancelled
   propertyId: string;
   guestName: string;
   propertyTitle: string;
+  properties: { id: string; title: string }[];
+  members: { id: string; name: string }[];
+  priorities: TaskPriority[];
+  taskStatus: TaskStatusOption[];
+  currentUserId: string;
 }
 
-export function TaskStatusCell({ tasks, bookingId, bookingStatus, propertyId, guestName, propertyTitle }: TaskStatusCellProps) {
+export function TaskStatusCell({
+  tasks,
+  bookingId,
+  bookingStatus,
+  propertyId,
+  guestName,
+  propertyTitle,
+  properties,
+  members,
+  priorities,
+  taskStatus,
+  currentUserId,
+}: TaskStatusCellProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [taskMode, setTaskMode] = useState<'create' | 'edit'>('create');
+  const [selectedTask, setSelectedTask] = useState<any>(null);
 
    // --- SCENARIO 0: Booking is Cancelled (No tasks needed) ---
   if (bookingStatus === 'cancelled') {
@@ -185,7 +207,7 @@ export function TaskStatusCell({ tasks, bookingId, bookingStatus, propertyId, gu
 
   // Determine Badge Content based on hierarchy logic
   const { content: badgeContent, style: badgeStyle } = calculateBadgeProps(tasks);
-// console.log('Tasks: ',tasks)
+
   return (
     <>
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -211,9 +233,15 @@ export function TaskStatusCell({ tasks, bookingId, bookingStatus, propertyId, gu
                {/* ... (task list rendering same as before) */}
                {tasks && tasks.length > 0 ? (
                   tasks.map((task) => (
-                      <div
+                      <button
                       key={task.id}
-                      className="flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors border-b last:border-0 group"
+                      onClick={() => {
+                        setTaskMode('edit');
+                        setModalOpen(true);
+                        setPopoverOpen(false);
+                        setSelectedTask(task);
+                      }}
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors border-b last:border-0 group"
                       >
                       {/* Icon */}
                       <div className="text-muted-foreground group-hover:text-foreground transition-colors">
@@ -262,7 +290,7 @@ export function TaskStatusCell({ tasks, bookingId, bookingStatus, propertyId, gu
                               </div>
                           </div>
                       </div>
-                      </div>
+                      </button>
                   ))
                ) : (
                   <div className="p-6 text-center text-muted-foreground text-xs italic">
@@ -276,8 +304,9 @@ export function TaskStatusCell({ tasks, bookingId, bookingStatus, propertyId, gu
                  variant="outline" 
                  className="w-full max-w-xs text-xs h-8" 
                  onClick={() => {
-                   setPopoverOpen(false);
-                   setModalOpen(true);
+                    setTaskMode('create');
+                    setPopoverOpen(false);
+                    setModalOpen(true);
                  }}
                >
                  <Plus className="h-3.5 w-3.5 mr-1.5 opacity-60" />
@@ -288,14 +317,31 @@ export function TaskStatusCell({ tasks, bookingId, bookingStatus, propertyId, gu
         </PopoverContent>
       </Popover>
 
-      <AddTaskModal 
-        bookingId={bookingId} 
-        propertyId={propertyId} 
+      {/* <AddTaskModal
+        bookingId={bookingId}
+        propertyId={propertyId}
         guestName={guestName}
-        propertyTitle={propertyTitle} 
+        propertyTitle={propertyTitle}
         open={modalOpen}
         onOpenChange={setModalOpen}
         hideTrigger={true}
+        properties={properties}
+        members={members}
+        priorities={priorities}
+      /> */}
+      <TaskDetailsSheet
+        isOpen={modalOpen}
+        onOpenChange={setModalOpen}
+        task={selectedTask}
+        properties={properties}
+        teamMembers={members}
+        mode={taskMode}
+        taskStatus={taskStatus}
+        taskPriorities={priorities}
+        currentUserId={currentUserId}
+        currentDate={new Date()}
+        bookingId={bookingId}
+        propertyId={propertyId}
       />
     </>
   );

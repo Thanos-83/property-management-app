@@ -34,6 +34,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TableBooking } from '@/types/bookingTypes';
+import { TaskPriority, TaskStatusOption } from '@/types/taskTypes';
 import { columns } from './columns';
 import { StatusFilter } from './filters/StatusFilter';
 import { PlatformFilter } from './filters/PlatformFilter';
@@ -49,9 +50,21 @@ import {
 
 interface BookingsTableProps {
   data: TableBooking[];
+  properties: { id: string; title: string }[];
+  members: { id: string; name: string }[];
+  priorities: TaskPriority[];
+  taskStatus: TaskStatusOption[];
+  currentUserId: string;
 }
 
-export default function BookingsTable({ data }: BookingsTableProps) {
+export default function BookingsTable({
+  data,
+  properties,
+  members,
+  priorities,
+  taskStatus,
+  currentUserId,
+}: BookingsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -79,6 +92,13 @@ export default function BookingsTable({ data }: BookingsTableProps) {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    meta: {
+      properties,
+      members,
+      priorities,
+      taskStatus,
+      currentUserId,
+    },
   });
 
   return (
