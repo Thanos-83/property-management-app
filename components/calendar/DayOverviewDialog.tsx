@@ -50,6 +50,7 @@ export function DayOverviewDialog({ isOpen, onClose, date, events, onSelectEvent
   const tasks = events.filter(e => e.type === 'task');
   const hasMultipleBookings = bookings.length > 1;
 
+  console.log('Bookings in DayOverviewDialog: ', bookings);
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden bg-background">
@@ -286,6 +287,17 @@ export function DayOverviewDialog({ isOpen, onClose, date, events, onSelectEvent
                  </div>
                  <h4 className="text-sm font-bold text-foreground">No events</h4>
                  <p className="text-xs text-muted-foreground mt-1">Your schedule is clear for this day.</p>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-7 text-xs font-bold mt-4"
+                    onClick={() => {
+                      onClose();
+                      if (date && onAddTask) onAddTask(date);
+                    }}
+                  >
+                    <Plus className="w-3 h-3 mr-1" /> Add Task
+                  </Button>
                </div>
             )}
 

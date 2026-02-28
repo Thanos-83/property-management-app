@@ -57,8 +57,6 @@ export function PlatformFilter({
     }
   }, [searchParamPlatform, platform]);
 
-  console.log('Platforms in Platform Filter 1: ', platform);
-  console.log('Platforms in Platform Filter 2: ', searchParamPlatform);
 
   return (
     <Form {...form}>

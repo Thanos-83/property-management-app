@@ -82,15 +82,19 @@ export default function EnhancedCalendar({
 // Add the Handler for the show more button
 const handleShowMore = (events: any[], date: Date) => {
     // Fetch ALL events (tasks + bookings) for this day
+    console.log('Events in show more: ', events);
+    console.log('Date in show more: ', date);
+    console.log('Data in show more: ', data);
     const allEvents = 'events' in data ? (data.events || []) : [];
     const dailyEvents = allEvents.filter(event => 
       isSameDay(new Date(event.start), date)
     );
-    
+    console.log('Daily events in show more: ', dailyEvents);
     setDayDialogState({
       isOpen: true,
       date: date,
-      events: dailyEvents as CalendarEvent[]
+      // events: dailyEvents as CalendarEvent[]
+      events: events as CalendarEvent[]
     });
   };
 

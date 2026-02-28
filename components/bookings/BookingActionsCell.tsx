@@ -16,12 +16,14 @@ import { TableBooking } from '@/types/bookingTypes';
 
 interface BookingActionsCellProps {
   booking: TableBooking;
+  properties: { id: string; title: string }[];
 }
 
-export function BookingActionsCell({ booking }: BookingActionsCellProps) {
+export function BookingActionsCell({ booking, properties }: BookingActionsCellProps) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  return (
+  console.log('Booking in actions cell: ', booking);
+  console.log('Properties in actions cell: ', properties);
+    return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -47,6 +49,7 @@ export function BookingActionsCell({ booking }: BookingActionsCellProps) {
         booking={booking}
         isOpen={isSheetOpen}
         onOpenChange={setIsSheetOpen}
+        properties={properties}
       />
     </>
   );

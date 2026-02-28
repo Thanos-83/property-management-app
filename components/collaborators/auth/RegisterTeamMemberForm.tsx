@@ -43,6 +43,7 @@ export default function RegisterTeamMemberForm() {
     },
   });
 
+  console.log('Form Data: ', form.formState.errors)
   const onSubmit = async (formData: CreateMemberSchemaType) => {
     console.log('Form Data: ', formData);
     const response = await createMemberFinalAction(formData);

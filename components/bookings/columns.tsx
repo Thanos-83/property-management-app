@@ -239,13 +239,15 @@ export const columns: ColumnDef<TableBooking>[] = [
           properties={meta?.properties || []}
           members={meta?.members || []}
           priorities={meta?.priorities || []}
+          taskStatus={meta?.taskStatus || []}
+          currentUserId={meta?.currentUserId || ''}
         />
       );
     },
   },
   {
     id: 'actions',
-    cell: ({ row }) => <BookingActionsCell booking={row.original} />,
+    cell: ({ row, table }) => <BookingActionsCell booking={row.original} properties={(table.options.meta as any)?.properties || []}/>,
     size: 40,
   },
 ];

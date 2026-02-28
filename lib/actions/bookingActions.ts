@@ -32,12 +32,44 @@ export const fetchBookingsAction = async () => {
           type,
           status,
           priority,
+          notes,
           team_member_id,
           team_member:team_members!team_member_id (
             first_name,
             last_name
           ),
-          scheduled_date
+          scheduled_date,
+          property:properties!property_id (
+            title,
+            location,
+            id
+          ),
+          taskTodos:task_list_item!task_list_item_task_id_fkey (
+            description,
+            is_completed,
+            sort_order,
+            completed_by_member,
+            completed_datetime,
+            id
+          ),
+          teamMember:team_members!team_member_id(
+            first_name,
+            last_name
+          ),
+          attachments:task_attachments(
+            file_url,
+            file_name,
+            file_type,
+            uploaded_by,
+            id
+          ),
+          task_activity!task_id (
+            id,
+            activity_type,
+            content,
+            created_at,
+            user_id
+          )
         )
         `
       )

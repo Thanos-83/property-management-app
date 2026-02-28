@@ -63,6 +63,15 @@ export interface TaskBookingInfo {
 
 export interface TaskPropertyInfo {
   title: string;
+  id: string;
+}
+
+export interface TaskActivity {
+  id: string;
+  user_id: string;
+  activity_type: string;
+  created_at: string;
+  content: string;
 }
 
 export interface SingleTask {
@@ -84,7 +93,9 @@ export interface SingleTask {
   taskTodos: TaskTodo[];
   // Optional safety fallbacks based on how the calendar passes data
   title?: string;
-  resource?: any; 
+  resource?: any;
+  // Activity log entries (comments, status changes, etc.)
+  task_activity?: TaskActivity[];
 }
 
 export interface TaskPrioritiesOption {

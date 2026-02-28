@@ -25,16 +25,7 @@ import { toUTC } from '@/lib/utils/calendarUtils';
 import { DeleteBookingAlert } from './DeleteBookingAlert';
 import Image from 'next/image';
 
-// --- MOCKS FOR CANVAS ENVIRONMENT ---
-// These replace the local Next.js and custom directory imports so the UI can render here.
-// const useRouter = () => ({ refresh: () => {} });
-// const bookingSchema = z.any();
-// type BookingSchemaType = any;
-// const toUTC = (date: Date) => {
-//   if (!date) return undefined;
-//   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-// };
-// ------------------------------------
+
 
 interface BookingDetailsSheetProps {
   booking: TableBooking | null;
@@ -60,7 +51,7 @@ const getStatusStyles = (status: string) => {
 
 export function BookingDetailsSheet({ booking, isOpen, onOpenChange, properties, isConflicting = false }: BookingDetailsSheetProps) {
   const router = useRouter();
-
+  // console.log('Properties in details sheet: ', properties);
   const [logistics, setLogistics] = useState({
     start_date: booking?.start_date as Date | undefined,
     end_date: booking?.end_date as Date | undefined,
@@ -158,7 +149,7 @@ export function BookingDetailsSheet({ booking, isOpen, onOpenChange, properties,
   };
 
   const bookingPlatformIcon = (platform: string): string | null => {
-    console.log(platform);
+    // console.log(platform);
     switch (platform) {
       case 'Airbnb':
         return '/icons/airbnb-short.png';

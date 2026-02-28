@@ -18,7 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Control, UseFormSetValue, useWatch } from 'react-hook-form';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
-import { FormControl, FormField, FormItem } from '../ui/form';
+import { FormControl, FormField, FormItem, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -148,6 +148,7 @@ export const SortableChecklistItem = ({
                   }}
                 />
               </FormControl>
+              <FormMessage className='text-[10px]'/>
             </FormItem>
           )}
         />

@@ -60,14 +60,23 @@ export const taskDetailsSchema = z.object({
   taskTodos: z.array(
     z.object({
       id: z.string(),
-      description: z.string(),
+      description: z.string().min(1, 'Subtask content is required'),
       is_completed: z.boolean(),
       sort_order: z.number(),
       completed_by_member: z.string().nullable().optional(),
       completed_datetime: z.string().nullable().optional(),
     })
-  )
+  ),
+  newAttachments: z.array(z.object({
+    file_url: z.string(),
+    file_name: z.string(),
+    file_type: z.string(),
+  })),
+  attachmentsToRemove: z.array(z.string()),
 });
 
 // Infer the TypeScript type from the Zod Schema!
 export type TaskDetailsSchemaType = z.infer<typeof taskDetailsSchema>;
+
+
+

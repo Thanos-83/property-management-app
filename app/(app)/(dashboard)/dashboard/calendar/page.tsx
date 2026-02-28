@@ -38,7 +38,9 @@ async function Calendar({
   ]);
 
   const filterOptionsData = await fetchCalendarDataFilterOptionsAction();
-const supabase = await createClient();
+console.log('Filter options data: ', filterOptionsData);
+
+  const supabase = await createClient();
   const user = await supabase.auth.getUser();
 
   return (

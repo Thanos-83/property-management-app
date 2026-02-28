@@ -16,9 +16,6 @@ export const fetchCalendarDataAction = async ({
   try {
     const supabase = await createClient();
 
-    console.log('Search Params in Server Action: - Platform ', platform);
-    console.log('Search Params in Server Action: - Property', property);
-
     // Auth: get the user from supabase session
     const {
       data: { user },
@@ -130,7 +127,22 @@ export const fetchCalendarDataAction = async ({
         teamMember:team_members!team_member_id(
           first_name,
           last_name
+        ),
+        attachments:task_attachments(
+          file_url,
+          file_name,
+          file_type,
+          uploaded_by,
+          id
+        ),
+        task_activity!task_id (
+          id,
+          activity_type,
+          content,
+          created_at,
+          user_id
         )
+
       `
       )
       .eq('assigner_id', user.id);
