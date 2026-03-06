@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/utils/supabase/server';
 import { SyncService } from '@/lib/services/syncService';
-import { sync } from 'motion/react';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { propertyId, syncAll } = body;
+    const { propertyId, syncAll, icalId } = body;
 
     let results;
 
@@ -31,7 +30,11 @@ export async function POST(request: NextRequest) {
     } else if (propertyId) {
       // Sync specific property
       results = await SyncService.syncProperty(propertyId);
-    } else {
+    } else if(icalId){     
+      // Sync a single specific calendar URL
+      console.log('Syncing single iCal with ID: ', icalId);
+      results = await SyncService.syncSingleIcal(icalId); 
+    }else {
       return NextResponse.json(
         { error: 'Either propertyId or syncAll must be specified' },
         { status: 400 }

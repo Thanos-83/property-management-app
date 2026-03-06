@@ -33,9 +33,7 @@ export class IcalParser {
     }
   }
 
-  /**
-   * Fetch and parse iCal data from a URL
-   */
+
   /**
    * Fetch and parse iCal data from a URL
    */

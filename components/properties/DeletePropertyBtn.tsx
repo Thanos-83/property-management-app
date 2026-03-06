@@ -25,6 +25,7 @@ function DeletePropertyBtn({ propertyId }: { propertyId: string }) {
       disabled={isPending}
       onClick={() => handleDeleteProperty(propertyId)}
       variant='destructive'
+      className='w-full'
       size='sm'>
       <Loader2Icon
         className={`animate-spin ${isPending ? 'block' : 'hidden'}`}

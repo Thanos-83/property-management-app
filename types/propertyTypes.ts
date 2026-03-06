@@ -8,6 +8,9 @@ export type PropertyTypesApi = {
   rooms: number;
   created_at: string;
   updated_at: string;
+  image_url: string | null;
+  property_icals?: PropertyIcalUrls[];
+  template_links?: PropertyTemplateLinks[];
 };
 
 export type PropertyTypesApp = {
@@ -20,6 +23,9 @@ export type PropertyTypesApp = {
   rooms: number;
   created_at: string;
   updated_at: string;
+  image_url: string | null;
+  property_icals?: PropertyIcalUrls[];
+  template_links?: PropertyTemplateLinks[];
 };
 
 export type PropertyIcalUrls = {
@@ -31,4 +37,12 @@ export type PropertyIcalUrls = {
   updated_at: string;
   last_synced: string | null;
   property_id: string;
+};
+
+export type PropertyTemplateLinks = {
+  id: string;
+  template_id: string;
+  property_id: string;
+  is_active: boolean;
+  offset_minutes: number;
 };
