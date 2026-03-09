@@ -42,11 +42,6 @@ function DashboardHeader() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-      <div className='flex items-center gap-2 px-4'>
-        {pathname === '/dashboard/task-templates' && (
-          <Button variant="outline"><Link href="/dashboard/task-templates/new-template">Add Template</Link></Button>
-        )}
-      </div>
     </header>
   );
 }

@@ -26,7 +26,7 @@ async function MembersPage() {
   );
 
   const members = user ? await getMembers(user.id) : [];
-  console.log('Members: ', members);
+  // console.log('Members: ', members);
 
   return (
     <div className='group flex-1 overflow-y-auto p-4'>

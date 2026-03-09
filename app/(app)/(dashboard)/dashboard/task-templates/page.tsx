@@ -1,31 +1,36 @@
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { getTaskTemplatesAction } from "@/lib/actions/taskTemplateActions";
+import TaskTemplatesClient from "@/components/task-templates/TaskTemplatesClient";
+import { createClient } from "@/lib/utils/supabase/server";
 
 export default async function TaskTemplatesPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
+  // 1. Fetch the main templates
   const templates = await getTaskTemplatesAction();
 
-      return (
-        <div className='group flex-1 overflow-y-auto p-4'>
-          <div className='flex items-center justify-between'>
-            <h1 className='text-2xl font-bold mb-4'>Tasks</h1>
-            <Button variant="outline"><Link href="/dashboard/task-templates/new-template">Add Template</Link></Button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-            {templates.map((template: any) => (
-              <div key={template.id} className="space-y-2 p-4 border border-border rounded-md">
-                <h2 className="text-lg font-semibold">{template.name}</h2>
-                <p className="text-muted-foreground">{template.description_notes}</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-muted-foreground">{template.task_type}</p>
-                  <Link href={`/dashboard/task-templates/${template.id}`} className="text-primary hover:underline">View</Link>
-                  <Link href={`/dashboard/task-templates/${template.id}/edit`} className="text-primary hover:underline">Edit</Link>
-                  <Link href={`/dashboard/task-templates/${template.id}/delete`} className="text-primary hover:underline">Delete</Link>
-                </div>
-              </div>
-            ))}
-          </div>          
-        </div>
-      );
-    }
+  // 2. Fetch auxiliary data needed for the Create/Edit form
+  // We use Promise.all to fetch them simultaneously for better performance
+  const [
+    { data: properties },
+    { data: teamMembers },
+    { data: priorities },
+    { data: taskTypes }
+  ] = await Promise.all([
+    supabase.from('properties').select('id, title').eq('owner_id', user?.id),
+    supabase.from('team_members').select('id, first_name, last_name').eq('inviter_id', user?.id).eq('has_portal_access', true),
+    supabase.from('task_priorities').select('id, name:priority, priority_color'),
+    supabase.from('task_types').select('id, name, icon_name, theme_color').eq('is_active', true)
+  ]);
+
+  // Pass data to the interactive client component
+  return (
+    <TaskTemplatesClient 
+      initialTemplates={templates} 
+      properties={properties || []}
+      teamMembers={teamMembers || []}
+      priorities={priorities || []}
+      taskTypes={taskTypes || []}
+    />
+  );
+}
