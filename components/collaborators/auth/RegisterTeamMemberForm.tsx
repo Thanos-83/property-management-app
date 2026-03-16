@@ -17,7 +17,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-// import { toast } from 'sonner';
 import { PhoneInput } from '@/components/ui/phone-input';
 import {
   createMemberSchema,
@@ -25,10 +24,13 @@ import {
 } from '@/lib/schemas/createMemberSchema';
 import { toast } from 'sonner';
 import { createMemberFinalAction } from '@/lib/actions/taskMemberActions';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterTeamMemberForm() {
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const searchParams = useSearchParams();
+  const token = searchParams.get('token') || '';
+  const emailParam = searchParams.get('email') || '';
 
   const toggleVisibility = () => setIsVisible((prevState) => !prevState);
 
@@ -38,84 +40,85 @@ export default function RegisterTeamMemberForm() {
       firstName: '',
       lastName: '',
       mobilePhone: '',
-      email: searchParams.get('email') ?? '',
+      email: emailParam,
       password: '',
     },
   });
 
-  console.log('Form Data: ', form.formState.errors)
   const onSubmit = async (formData: CreateMemberSchemaType) => {
-    console.log('Form Data: ', formData);
-    const response = await createMemberFinalAction(formData);
+    // Append the token securely to the payload
+    const response = await createMemberFinalAction({ ...formData, token });
 
-    if (response.status === 'fail') {
+    if (response?.status === 'fail') {
       toast.error(response.message);
     }
   };
 
   return (
-    <div className='mx-auto w-[90%] max-w-[32rem]'>
-      <div className='bg-muted max-w-lg m-auto h-fit w-full overflow-hidden rounded-[calc(var(--radius)+.125rem)] border border-border shadow-md shadow-zinc-950/5 dark:[--color-muted:var(--color-zinc-900)]'>
-        <div className='bg-popover -m-[2px] rounded-b-[calc(var(--radius)+.5rem)] border-b border-b-border p-6'>
-          <div className='text-center'>
-            <h1 className='text-lg'>Create your account</h1>
+    <div className='mx-auto w-full max-w-[32rem] py-8'>
+      <div className='bg-white max-w-lg m-auto h-fit w-full overflow-hidden rounded-xl border border-border shadow-md'>
+        <div className='bg-popover rounded-t-xl border-b border-border p-6 pb-8'>
+          <div className='text-center mb-6'>
+            <h1 className='text-2xl font-bold tracking-tight'>Create your account</h1>
+            <p className="text-sm text-muted-foreground mt-1">Join the team workspace</p>
           </div>
 
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className='mt-6 space-y-6'>
-              <FormField
-                control={form.control}
-                name='firstName'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className='block text-sm'>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder='First Name' {...field} />
-                    </FormControl>
-                    <FormMessage className='text-red-600' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='lastName'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className='block text-sm'>Last Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder='Last Name' {...field} />
-                    </FormControl>
-                    <FormMessage className='text-red-600' />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-5'>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name='firstName'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className='text-xs font-bold uppercase text-muted-foreground tracking-wider'>First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder='Jane' {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='lastName'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className='text-xs font-bold uppercase text-muted-foreground tracking-wider'>Last Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder='Doe' {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
                 name='email'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className='text-xs font-bold uppercase text-muted-foreground tracking-wider'>Email</FormLabel>
                     <FormControl>
                       <Input
                         type='email'
-                        placeholder='Email'
                         {...field}
                         readOnly
-                        className='text-gray-400'
+                        className='bg-muted/50 text-muted-foreground cursor-not-allowed focus-visible:ring-0'
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name='mobilePhone'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mobile Phone Number</FormLabel>
+                    <FormLabel className='text-xs font-bold uppercase text-muted-foreground tracking-wider'>Mobile Phone</FormLabel>
                     <FormControl>
                       <PhoneInput {...field} />
                     </FormControl>
@@ -123,82 +126,59 @@ export default function RegisterTeamMemberForm() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name='password'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className='text-xs font-bold uppercase text-muted-foreground tracking-wider'>Password</FormLabel>
                     <div className='relative'>
                       <FormControl>
                         <Input
                           {...field}
-                          // className='pe-9 input sz-md variant-mixed'
-                          placeholder='Password'
+                          placeholder='Create a secure password'
                           type={isVisible ? 'text' : 'password'}
+                          className="pr-10"
                         />
                       </FormControl>
 
                       <button
-                        className='text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-md transition-[color,box-shadow] outline-none focus:z-10 focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50'
+                        className='absolute inset-y-0 right-0 flex h-full w-10 items-center justify-center text-muted-foreground hover:text-foreground transition-colors'
                         type='button'
                         onClick={toggleVisibility}
-                        aria-label={
-                          isVisible ? 'Hide password' : 'Show password'
-                        }
-                        aria-pressed={isVisible}
-                        aria-controls='password'>
-                        {isVisible ? (
-                          <EyeOffIcon size={16} aria-hidden='true' />
-                        ) : (
-                          <EyeIcon size={16} aria-hidden='true' />
-                        )}
+                      >
+                        {isVisible ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
                       </button>
                     </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <Button
                 disabled={form.formState.isSubmitting}
                 type='submit'
-                className='w-full'>
-                <Loader
-                  className={`${
-                    form.formState.isSubmitting
-                      ? 'inline-block animate-spin'
-                      : 'hidden'
-                  }`}
-                />
-                Sign Up
+                className='w-full font-bold shadow-sm mt-4'
+              >
+                {form.formState.isSubmitting ? <Loader className='mr-2 h-4 w-4 animate-spin' /> : null}
+                {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
               </Button>
             </form>
           </Form>
         </div>
 
-        <div className='p-3'>
-          <p className='text-accent-foreground text-center text-sm'>
-            Already have an account ?
-            <Button
-              disabled={!searchParams.has('token')}
-              asChild
-              variant='link'
-              className='px-2'>
-              <Link href='/auth/login'>Sign In</Link>
-            </Button>
+        <div className='p-4 bg-muted/30 border-t border-border flex flex-col items-center justify-center gap-2'>
+          <p className='text-center text-sm text-muted-foreground'>
+            Already have an account?{' '}
+            <Link href='/auth/login' className='text-primary font-semibold hover:underline'>
+              Sign In
+            </Link>
           </p>
+          <div className='text-muted-foreground text-center text-[10px] max-w-[250px] leading-tight mt-1'>
+            By clicking continue, you agree to our <Link className='underline hover:text-foreground' href='#'>Terms of Service</Link> and <Link className='underline hover:text-foreground' href='#'>Privacy Policy</Link>.
+          </div>
         </div>
-      </div>
-      <div className='p-3 text-muted-foreground *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4'>
-        <p> By clicking continue, you agree to our </p>{' '}
-        <Link className='underline' href='#'>
-          Terms of Service
-        </Link>{' '}
-        and{' '}
-        <Link className='underline' href='#'>
-          Privacy Policy
-        </Link>
-        .
       </div>
     </div>
   );

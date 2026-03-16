@@ -43,6 +43,7 @@ export default function EnhancedCalendar({
   taskPrioritiesData,
   taskMembersData,
   currentUserId,
+  currentUserInfo,
   filterOptionsData,
 }: {
   bookingData: Promise<CalendarData>;
@@ -51,6 +52,7 @@ export default function EnhancedCalendar({
   taskPrioritiesData: any[];
   taskMembersData: any[];
   currentUserId: string;
+  currentUserInfo: any;
   filterOptionsData: any[];
 }) {
   const [view, setView] = useState<View>(Views.MONTH);
@@ -249,6 +251,7 @@ const handleShowMore = (events: any[], date: Date) => {
         currentUserId={currentUserId}
         currentDate={dayDialogState.date || new Date()}
         mode={selectedTask ? 'edit' : 'create'}
+        currentUserInfo={currentUserInfo}
       />
 
       <DayOverviewDialog

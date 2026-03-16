@@ -1,24 +1,25 @@
-'use client';
+import { getMyAssignedTasksAction } from '@/lib/actions/teamMemberActions';
+import { TeamTasksClient } from '@/components/team-members/TeamTasksClient';
 
-import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/utils/supabase/client';
-import { useRouter } from 'next/navigation';
+export default async function TeamDashboardPage() {
+  // Fetch data on the server! No useEffect or loading spinners needed.
+  const response = await getMyAssignedTasksAction();
 
-function TeamDashboardPage() {
-  const router = useRouter();
-  const supabase = createClient();
+  const tasks = response.data || [];
+  const memberName = response.member?.first_name || 'Team Member';
 
-  async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    console.log('Error signing out: ', error);
-    router.refresh();
-  }
   return (
-    <div className='bg-indigo-400 h-screen text-white p-6'>
-      Team members tasks page
-      <Button onClick={() => signOut()}>Log Out</Button>
+    <div className='p-4 max-w-md mx-auto'>
+      {/* Welcome Section */}
+      <div className="mb-6 mt-2">
+        <h1 className="text-2xl font-bold text-foreground">Hello, {memberName}</h1>
+        <p className="text-sm text-muted-foreground">
+          Let's look at your schedule for today.
+        </p>
+      </div>
+
+      {/* Pass the prefetched data to the interactive client component */}
+      <TeamTasksClient initialTasks={tasks} />
     </div>
   );
 }
-
-export default TeamDashboardPage;

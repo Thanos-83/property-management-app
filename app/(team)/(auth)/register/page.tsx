@@ -1,81 +1,87 @@
 import RegisterTeamMemberForm from '@/components/collaborators/auth/RegisterTeamMemberForm';
 import { updateMemberInvitationAction } from '@/lib/actions/taskMemberActions';
 import { redirect } from 'next/navigation';
+import { AlertTriangle, Clock, XCircle } from 'lucide-react';
 
-async function MemberRegisterPage({
+export default async function MemberRegisterPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
-  console.log('Member Register Page search params: ', params);
 
   if (params.token && params.email) {
-    // Ensure token is a string by taking the first item if it's an array
-    const tokenValue = Array.isArray(params.token)
-      ? params.token[0]
-      : params.token;
+    const tokenValue = Array.isArray(params.token) ? params.token[0] : params.token;
 
-    // Ensure email is a string by taking the first item if it's an array
-    // const email = Array.isArray(params.email) ? params.email[0] : params.email;
-
+    // Validate the token and increment clicks securely
     const response = await updateMemberInvitationAction({
       token: tokenValue,
     });
-    console.log('Response calling update member invitation: ', response);
+
+    // 1. Used Token -> Send to login
+    if (response?.status === 4) {
+      redirect('/login');
+    }
 
     return (
-      <div>
-        {response?.status === 4 ? (
-          redirect('/login')
+      <div className='min-h-screen bg-slate-50 flex items-center justify-center p-4'>
+        {response?.status === 1 ? (
+          // ONLY SHOW THE FORM IF STATUS IS EXACTLY 1
+          <RegisterTeamMemberForm />
         ) : response?.status === 2 ? (
-          <div className='bg-amber-300 h-screen grid place-content-center'>
-            <div>
-              <h1 className='text-2xl font-bold text-center'>
-                Template #{response.status}
-              </h1>
-              <h3 className='text-lg font-medium'>
-                This is the template for the case where user have used the link
-                more times than it is allowed
-              </h3>
+          <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-border p-8 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
+              <AlertTriangle className="w-6 h-6" />
             </div>
+            <h1 className='text-xl font-bold text-foreground'>Link Security Locked</h1>
+            <p className='text-sm text-muted-foreground'>
+              This invitation link has been clicked too many times and has been automatically disabled for your security.
+            </p>
+            <p className='text-sm font-medium text-foreground pt-4 border-t border-border'>
+              Please contact your property manager to request a new invitation.
+            </p>
           </div>
         ) : response?.status === 3 ? (
-          <div className='bg-indigo-300 h-screen grid place-content-center'>
-            <div>
-              <h1 className='text-2xl font-bold text-center'>
-                Template #{response.status}
-              </h1>
-              <h3 className='text-lg font-medium'>
-                This is the template for the case where the token has expired!
-              </h3>
+          <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-border p-8 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mb-4">
+              <Clock className="w-6 h-6" />
             </div>
+            <h1 className='text-xl font-bold text-foreground'>Invitation Expired</h1>
+            <p className='text-sm text-muted-foreground'>
+              This invitation link has expired. Invitation links are only valid for 48 hours to protect your security.
+            </p>
+            <p className='text-sm font-medium text-foreground pt-4 border-t border-border'>
+              Please contact your property manager to request a new invitation.
+            </p>
           </div>
         ) : (
-          <div className='bg-slate-100'>
-            <div>
-              <h1 className='text-2xl font-bold text-center'>
-                Main Template #{response?.status}
-              </h1>
-
-              <RegisterTeamMemberForm />
+          // ANY OTHER STATUS (e.g. 5: Invalid Token)
+          <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-border p-8 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
+              <XCircle className="w-6 h-6" />
             </div>
+            <h1 className='text-xl font-bold text-foreground'>Invalid Link</h1>
+            <p className='text-sm text-muted-foreground'>
+              {response?.message || "The link you followed is missing required security information or has been revoked."}
+            </p>
           </div>
         )}
       </div>
     );
   } else {
+    // Missing Token or Email Params completely
     return (
-      <div className='bg-amber-200 h-screen grid place-content-center'>
-        <div>
-          <h1 className='text-2xl font-bold text-center'>Default Template</h1>
-          <h3 className='text-lg font-medium'>
-            This is the template for the case where no token or email exist
-          </h3>
+      <div className='min-h-screen bg-slate-50 flex items-center justify-center p-4'>
+        <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-border p-8 text-center space-y-4">
+          <div className="mx-auto w-12 h-12 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
+            <XCircle className="w-6 h-6" />
+          </div>
+          <h1 className='text-xl font-bold text-foreground'>Invalid Link</h1>
+          <p className='text-sm text-muted-foreground'>
+            The link you followed is incomplete. Please make sure you copied the full link from your email.
+          </p>
         </div>
       </div>
     );
   }
 }
-
-export default MemberRegisterPage;

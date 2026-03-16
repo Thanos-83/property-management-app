@@ -264,7 +264,7 @@ export const getTaskTemplatesAction = async () => {
         *,
         checklist_items:task_template_items(id, description, sort_order),
         linked_properties:property_template_link(id, property_id, offset_minutes, is_active),
-        team_member:team_members(first_name, last_name),
+        team_member:team_members(first_name, last_name,avatar_url),
         priority:task_priorities(priority, priority_color)
       `)
       .order('created_at', { ascending: false });

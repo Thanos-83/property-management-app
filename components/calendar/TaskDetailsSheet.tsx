@@ -39,6 +39,7 @@ interface TaskDetailsSheetProps {
   taskStatus: TaskStatusOption[];
   taskPriorities: TaskPrioritiesOption[];
   currentUserId: string;
+  currentUserInfo: any;
   currentDate: Date;
   bookingId?: string;
   propertyId?: string;
@@ -54,6 +55,7 @@ export function TaskDetailsSheet({
   taskStatus = [], 
   taskPriorities = [],
   currentUserId,
+  currentUserInfo,
   currentDate,
   bookingId,
   propertyId,
@@ -175,6 +177,48 @@ export function TaskDetailsSheet({
       });
     }
   }, [task?.id,  isCreateMode, isOpen]);
+
+  // --- REAL-TIME SUBSCRIPTION  ---
+  useEffect(() => {
+    if (!task?.id || !isOpen) return;
+
+    const supabase = createClient();
+    const channel = supabase.channel(`task-updates-${task.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'task_activity', 
+        filter: `task_id=eq.${task.id}` 
+      }, (payload) => {
+        // Only refresh if someone ELSE added the comment
+        console.log('New comment added: ', payload);
+        console.log('Current user ID: ', currentUserId);
+        if (payload.new.user_id !== currentUserId) {
+          console.log('Refreshing router...');
+          // --- THE FIX: Instantly inject the new comment into the UI state ---
+          setBaseActivities((prev: any[]) => {
+            // Prevent duplicates just in case
+            if (prev.some(activity => activity.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
+          router.refresh();
+        }
+      })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'tasks', 
+        filter: `id=eq.${task.id}` 
+      }, (payload) => {
+          // Refresh if the team member updates the status to completed
+          router.refresh();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [task?.id, isOpen, currentUserId, router]);
 
     // --- DIRTY STATE LOGIC ---
   // Calculates if the form should be savable based on standard inputs or attachment changes
@@ -707,6 +751,8 @@ export function TaskDetailsSheet({
                       handleAddComment={handleAddComment}
                       sortedActivities={baseActivities}
                       commentInputRef={commentInputRef}
+                      currentUserInfo={currentUserInfo}
+                      teamMembers={teamMembers}
                     />
                 </TabsContent>
               </ScrollArea>

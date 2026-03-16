@@ -19,7 +19,7 @@ async function Calendar({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  console.log('Search Params in Calendar Server Page: ', params);
+  // console.log('Search Params in Calendar Server Page: ', params);
 
   const { platform = 'All', property = '' } = params as {
     platform?: string;
@@ -38,11 +38,23 @@ async function Calendar({
   ]);
 
   const filterOptionsData = await fetchCalendarDataFilterOptionsAction();
-console.log('Filter options data: ', filterOptionsData);
+// console.log('Filter options data: ', filterOptionsData);
 
   const supabase = await createClient();
   const user = await supabase.auth.getUser();
 
+  // console.log('User: ', user);
+  // console.log('User user_metadata: ', user.data.user?.user_metadata);
+  // console.log('User app_metadata: ', user.data.user?.app_metadata);
+  const currentUserInfo = {
+    id: user.data.user?.id,
+    email: user.data.user?.email,
+    // first_name: user.data.user?.user_metadata.first_name,
+    // last_name: user.data.user?.user_metadata.last_name,
+    full_name: user.data.user?.user_metadata.full_name,
+    avatar: user.data.user?.user_metadata.avatar_url || '',
+    role: user.data.user?.app_metadata.role || '',
+  }
   return (
     <div className='group flex-1 overflow-y-auto'>
       <div className='p-4 flex items-center gap-4'>
@@ -59,6 +71,7 @@ console.log('Filter options data: ', filterOptionsData);
             taskPrioritiesData={taskPrioritiesData?.data || []} 
             taskMembersData={taskMembersData?.members || []} 
             currentUserId={user.data.user?.id || ''} 
+            currentUserInfo={currentUserInfo} 
             filterOptionsData={filterOptionsData || []} 
             />
         </Suspense>

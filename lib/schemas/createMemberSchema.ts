@@ -15,3 +15,12 @@ export const createMemberSchema = z.object({
 });
 
 export type CreateMemberSchemaType = z.infer<typeof createMemberSchema>;
+
+export const inviteMemberSchema = z.object({
+  email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
+  first_name: z.string().min(3, 'First name is required'),
+  last_name: z.string().min(3, 'Last name is required'),
+  member_role: z.string().min(1, 'Member role is required'),
+});
+
+export type InviteMemberSchemaType = z.infer<typeof inviteMemberSchema>;

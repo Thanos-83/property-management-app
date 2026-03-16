@@ -6,6 +6,7 @@ import { taskDetailsSchema, TaskDetailsSchemaType, taskSchema, TaskSchemaType } 
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { toUTC } from '../utils/calendarUtils';
 import { format } from 'date-fns';
+import { createServiceClient } from '../utils/supabase/supabaseDB';
 
 export const fetchTasksAction = async () => {
   try {
@@ -74,6 +75,7 @@ export const createTaskAction = async (taskData: any) => {
 
   try {
     const supabase = await createClient();
+    const supabaseAdmin = createServiceClient();
 
     const { data: {user} } = await supabase.auth.getUser();
 
@@ -84,7 +86,7 @@ export const createTaskAction = async (taskData: any) => {
     const { taskTodos, taskId, newAttachments, attachmentsToRemove, ...dbTaskData } = taskData;
 
     // 2. Insert the Parent Task
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('tasks')
       .insert([{
         ...dbTaskData,
@@ -500,6 +502,32 @@ export const fetchTaskPrioritiesAction = async () => {
   }
 };
 
+export const fetchTaskTypesAction = async () => {
+  try {
+    const supabase = await createClient();
+
+    const { data: taskTypes, error } = await supabase
+      .from('task_types')
+      .select('id, name')
+      .eq('is_active', true)
+
+    // console.log('Task types server: ', taskTypes);
+    if (error) {
+      console.error('Error fetching tasks types:', error);
+      return { error: error.message, status: 500, data: null };
+    }
+
+    return { error: null, status: 200, data: taskTypes };
+  } catch (error) {
+    console.error('Error fetching tasks types:', error);
+    return {
+      error: 'Error fetching tasks types',
+      status: 500,
+      data: null,
+    };
+  }
+};
+
 
 /**
  * Add a manual comment to a task
@@ -519,11 +547,14 @@ export const addTaskCommentAction = async (taskId: string, content: string) => {
  
     if (error) return { error: error.message, status: 500 };
 
-    revalidatePath('/dashboard/calendar', 'page');
-    revalidatePath('/dashboard/tasks', 'page');
     return {data, status: 201, error: null };
   } catch (error) {
     console.error('Error adding comment:', error);
     return { error: 'Failed to add comment', status: 500, data: null };
+  }finally{
+    revalidatePath('/dashboard/calendar', 'page');
+    revalidatePath('/dashboard/tasks', 'page');
+    revalidatePath(`/member/tasks/${taskId}`, 'page'); 
+
   }
 };

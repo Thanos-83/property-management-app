@@ -16,6 +16,7 @@ import { headers } from 'next/headers';
 
 
 import { getConnectedAccounts } from '@/lib/actions/emailActions';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // ... imports
 
@@ -48,7 +49,11 @@ export default async function DashboardLayout({
               <SidebarInset className='h-screen overflow-hidden !rounded-none !m-0 '>
                 {!pathname?.split("/").includes("email") && 
                 <DashboardHeader />}
-                {children}
+                <main className=''>
+                  <ScrollArea className='h-[calc(100dvh-64px)]'>
+                    {children}
+                  </ScrollArea>
+                </main>
               </SidebarInset>
             </SidebarProvider>
             <Toaster richColors position='top-right' />
