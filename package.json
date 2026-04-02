@@ -71,7 +71,7 @@
     "react-phone-number-input": "^3.4.12",
     "react-redux": "^9.2.0",
     "react-resizable-panels": "^3.0.6",
-    "resend": "^6.1.0",
+    "resend": "^6.9.4",
     "sonner": "^2.0.5",
     "stripe": "^18.3.0",
     "tailwind-merge": "^3.3.0",

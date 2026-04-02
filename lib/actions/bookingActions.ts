@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '../utils/supabase/server';
-import { TableBooking } from '@/types/bookingTypes';
+import { BookingEvent, TableBooking } from '@/types/bookingTypes';
 // import { revalidatePath, revalidateTag } from 'next/cache';
 
 export const fetchBookingsAction = async () => {
@@ -95,15 +95,15 @@ export const fetchBookingsAction = async () => {
   }
 };
 
-export const updateBookingAction = async (data: any) => {
+export const updateBookingAction = async (data: Partial<BookingEvent> & { id: string }) => {
   try {
     const supabase = await createClient();
-    const { bookingId, ...updates } = data;
+    const { id, ...updates } = data;
     console.log('Booking Data: ',data)
     const { error } = await supabase
       .from('bookings')
       .update(updates)
-      .eq('id', bookingId);
+      .eq('id', id); 
 
     if (error) {
       console.error('Error updating booking:', error);
@@ -112,7 +112,7 @@ export const updateBookingAction = async (data: any) => {
 
     // revalidatePath('/dashboard/bookings');
     // revalidateTag('bookings')
-    return { success: true };
+    return { success: true, error: null };
   } catch (error) {
     console.error('Unexpected error updating booking:', error);
     return { success: false, error: 'An unexpected error occurred' };

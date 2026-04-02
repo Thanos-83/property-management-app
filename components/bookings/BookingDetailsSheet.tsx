@@ -65,7 +65,7 @@ export function BookingDetailsSheet({ booking, isOpen, onOpenChange, properties,
   const form = useForm<BookingSchemaType>({
     resolver: zodResolver(bookingSchema) as any,
     defaultValues: {
-      bookingId: '',
+      id: '',
       guest_name: '' as string,
       guest_email: '' as string,
       guest_phone: '' as string,
@@ -84,7 +84,7 @@ export function BookingDetailsSheet({ booking, isOpen, onOpenChange, properties,
   useEffect(() => {
     if (booking) {
       form.reset({
-        bookingId: booking.id,
+        id: booking.id,
         guest_name: booking.guest_name || '',
         guest_email: booking.guest_email || '',
         guest_phone: booking.guest_phone || '',
@@ -148,7 +148,7 @@ export function BookingDetailsSheet({ booking, isOpen, onOpenChange, properties,
     }
   };
 
-  const bookingPlatformIcon = (platform: string): string | null => {
+  const bookingPlatformIcon = (platform?: string | null): string | null => {
     // console.log(platform);
     switch (platform) {
       case 'Airbnb':
@@ -186,7 +186,7 @@ export function BookingDetailsSheet({ booking, isOpen, onOpenChange, properties,
                     {/* <Badge variant="outline" className="text-[10px] uppercase tracking-wider text-muted-foreground border-border bg-background shadow-sm">
                       {booking.platform || 'Direct'}
                     </Badge> */}
-                    {(() => { const iconSrc = bookingPlatformIcon(booking.platform); return iconSrc !== null ? <Image src={iconSrc!} alt="Platform Icon" width={20} height={20} className="w-4` h-5" /> : <Home className="w-5 h-5 text-muted-foreground" />; })()}
+                    {(() => { const iconSrc = bookingPlatformIcon(booking.platform); return iconSrc !== null ? <Image src={iconSrc!} alt="Platform Icon" width={20} height={20} className="w-4 h-5" /> : <Home className="w-5 h-5 text-muted-foreground" />; })()}
                     <Badge className={`text-[10px] uppercase tracking-wider shadow-sm border ${getStatusStyles(logistics.status)}`}>
                       {logistics.status || booking.status}
                     </Badge>

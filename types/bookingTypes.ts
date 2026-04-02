@@ -3,9 +3,9 @@ export interface BookingEvent {
   property_id: string;
   ical_source_id: string;
   booking_uid: string;
-  platform: 'Airbnb' | 'Booking' | 'Vrbo' | 'Expedia' | string;
-  start_date: string; // ISO date string
-  end_date: string; // ISO date string
+  platform?: 'Airbnb' | 'Booking' | 'Vrbo' | 'Expedia' | string;
+  start_date: string; // yyyy-mm-dd format
+  end_date: string; // yyyy-mm-dd format
   guest_name?: string;
   guest_email?: string;
   guest_phone?: string;
@@ -16,8 +16,10 @@ export interface BookingEvent {
   status: 'confirmed' | 'pending' | 'cancelled' | 'completed' | string;
   created_at: string;
   updated_at: string;
-  properties: { id: string; title: string; owner_id: string };
-  property_icals: { platform: string };
+  properties?: { id: string; title: string; owner_id: string };
+  property_icals?: { platform: string };
+  custom_check_in_time?: string | undefined; // hh:mm format
+  custom_check_out_time?: string | undefined; // hh:mm format
 }
 
 export interface CalendarEvent {
@@ -35,7 +37,7 @@ export interface CalendarEvent {
     icalSourceId?: string; // Booking specific
     guestName?: string; // Booking specific
     taskType?: string; // Task specific (Cleaning, Maintenance)
-    originalData: any; // Keep full object
+    originalData: string; // Keep full object
   };
 }
 
@@ -93,4 +95,3 @@ export interface TableBooking extends BookingEvent {
     location?: string;
   };
 }
-

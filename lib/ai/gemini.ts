@@ -4,18 +4,27 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || '');
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
+
+
 export interface ExtractedBookingDetails {
   confirmation_code: string | null;
   guest_name: string | null;
   guest_email: string | null;
   guest_phone: string | null;
   guest_count: number | null;
+  adults: number | null;
   total_payout: number | null;
   currency: string | null;
-  check_in_date: string | null; // DD-MM-YYYY
-  check_out_date: string | null; // DD-MM-YYYY
-  platform: 'Airbnb' | 'Booking.com' | 'Vrbo' | 'Other' | null;
+  check_in_date: string | null;
+  check_out_date: string | null;
+  platform: string | null;
 }
+
+
+// ============================================================================
+// Legacy code of using Aurinko - to be removed in version 2.0
+// ============================================================================
+
 
 export async function extractBookingDetails(
   emailBody: string,
@@ -68,3 +77,5 @@ export async function extractBookingDetails(
     return null;
   }
 }
+
+// =================================================================================
