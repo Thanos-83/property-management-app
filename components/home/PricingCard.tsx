@@ -10,78 +10,106 @@ import {
 } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import { createStripeSession } from '@/lib/actions/stripeActions';
-import { createClient } from '@/lib/utils/supabase/client';
-import { useEffect, useState } from 'react';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
-export default function PricingCard({ productData }: { productData: any }) {
-  // console.log('Stripe product data from supabase: ', productData);
-  const supabase = createClient();
-  const [user, setUser] = useState(false);
-  useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      // console.log('User Data: ', user);
-      if (user) {
-        setUser(true);
-      } else {
-        setUser(false);
-      }
-    };
+export default function PricingCard({
+  productData,
+  isLoggedIn,
+}: {
+  productData: {
+    id: string;
+    name: string;
+    description?: string | null;
+    metadata?: Record<string, string> | null;
+    prices: {
+      id: string;
+      unit_amount: number;
+      interval: string;
+    }[];
+  };
+  isLoggedIn: boolean;
+}) {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
-    fetchUser();
-  });
+  const isPro = productData.name.toLowerCase() === 'pro';
+  // productData.name.toLowerCase() === 'premium';
 
-  // console.log('User in pricing card: ', user);
   const handleStripeSession = async (priceId: string) => {
-    if (user) {
-      const response = await createStripeSession(priceId);
-      console.log('Response from server action - Stripe session: ', response);
+    setIsLoading(true);
+    if (isLoggedIn) {
+      try {
+        const response = await createStripeSession(priceId);
+        // Assuming your server action returns { url: string } for the Stripe Checkout session
+        if (response?.url) {
+          window.location.href = response.url;
+        }
+      } catch (error) {
+        console.error('Stripe session failed:', error);
+      } finally {
+        setIsLoading(false);
+      }
     } else {
-      return redirect(`/auth/login?priceID=${priceId}`);
+      router.push(`/auth/login?priceID=${priceId}`);
     }
   };
+
   return (
-    <section className='py-8 md:py-16'>
-      <Card className='relative h-full'>
-        {productData.name === 'Pro' && (
-          <span className='bg-linear-to-br/increasing absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center rounded-full bg-primary px-6 py-1 text-xs font-medium text-muted ring-1 ring-inset ring-white/20 ring-offset-1 ring-offset-gray-950/5'>
-            Popular
+    <Card
+      className={`relative flex flex-col h-full shadow-sm transition-all hover:shadow-md ${isPro ? 'border-primary ring-1 ring-primary shadow-primary/10' : 'border-zinc-200'}`}>
+      {isPro && (
+        <div className='absolute -top-4 left-0 right-0 mx-auto w-fit rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground tracking-wide uppercase shadow-sm'>
+          Most Popular
+        </div>
+      )}
+
+      <CardHeader className='pt-8 pb-4'>
+        <CardTitle className='text-xl font-bold text-zinc-900'>
+          {productData?.name}
+        </CardTitle>
+        <CardDescription className='text-sm text-zinc-500 h-10'>
+          {productData?.description ||
+            'Perfect for managing your growing property portfolio.'}
+        </CardDescription>
+
+        <div className='mt-4 flex items-baseline text-5xl font-black text-zinc-900'>
+          €{productData?.prices[0].unit_amount / 100}
+          <span className='ml-1 text-base font-medium text-zinc-500 tracking-normal'>
+            /{productData?.prices[0].interval === 'month' ? 'mo' : 'yr'}
           </span>
-        )}
+        </div>
 
-        <CardHeader>
-          <CardTitle className='font-medium'>{productData?.name}</CardTitle>
+        <Button
+          onClick={() => handleStripeSession(productData.prices[0].id)}
+          disabled={isLoading}
+          variant={isPro ? 'default' : 'outline'}
+          className={`mt-6 w-full h-12 font-bold text-base ${isPro ? 'shadow-md hover:shadow-lg' : 'bg-transparent border-zinc-200 hover:bg-zinc-50'}`}>
+          {isLoading
+            ? 'Loading...'
+            : isLoggedIn
+              ? 'Upgrade Now'
+              : 'Get Started'}
+        </Button>
+      </CardHeader>
 
-          <span className='my-3 block text-2xl font-semibold'>
-            Euro {productData?.prices[0].unit_amount / 100} /{' '}
-            {productData?.prices[0].interval === 'month' ? 'month' : 'year'}
-          </span>
+      <CardContent className='flex-1 pt-6'>
+        <div className='h-px w-full bg-zinc-100 mb-6' />
 
-          <CardDescription className='text-sm'>Per User</CardDescription>
-
-          <Button
-            onClick={() => handleStripeSession(productData.prices[0].id)}
-            className='mt-4 w-full'>
-            Get Started
-          </Button>
-        </CardHeader>
-
-        <CardContent className='space-y-4'>
-          <hr className='border-dashed' />
-
-          <ul className='list-outside space-y-3 text-sm'>
-            {Object.values(productData.metadata).map((item, index) => (
-              <li key={index} className='flex items-center gap-2'>
-                <Check className='size-3' />
-                {String(item)}
+        <ul className='space-y-4 text-sm'>
+          {productData.metadata &&
+            Object.values(productData.metadata).map((item, index) => (
+              <li
+                key={index}
+                className='flex items-start gap-3 text-zinc-600 font-medium'>
+                <Check
+                  className={`h-5 w-5 shrink-0 ${isPro ? 'text-primary' : 'text-zinc-400'}`}
+                />
+                <span>{String(item)}</span>
               </li>
             ))}
-          </ul>
-        </CardContent>
-      </Card>
-    </section>
+        </ul>
+      </CardContent>
+    </Card>
   );
 }

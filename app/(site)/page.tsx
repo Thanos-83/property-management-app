@@ -1,23 +1,29 @@
-import React from 'react'
-import Link from 'next/link'
-import { ArrowRight, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import Image from 'next/image'
-import { TextEffect } from '@/components/ui/text-effect'
-import { AnimatedGroup} from '@/components/ui/animated-group' 
-// import { HeroHeader } from "@/components/header"
-import Pricing from '@/components/home/Pricing'
-import HeroSection from '@/components/home/hero-section'
+import React from 'react';
+import HeroSection from '@/components/home/HeroSection';
+import FeaturesSection from '@/components/home/FeaturesSection';
+import Pricing from '@/components/home/Pricing';
+import CtaSection from '@/components/home/CtaSection';
+import FaqSection from '@/components/home/FaqSection';
+import HowItWorksSection from '@/components/home/HowItWorksSection';
+import IntegrationsMarquee from '@/components/home/IntegrationsMarquee';
 
 export default function Home() {
-    return (
-        <>
-            <main className="overflow-hidden">
-                <HeroSection/>
-                <section>
-                    <Pricing/>
-                </section>
-            </main>
-        </>
-    )
+  return (
+    <>
+      <main className='overflow-hidden bg-white selection:bg-primary/20'>
+        <HeroSection />
+
+        <IntegrationsMarquee />
+
+        <HowItWorksSection />
+
+        <FeaturesSection />
+
+        <CtaSection />
+
+        <Pricing />
+        <FaqSection />
+      </main>
+    </>
+  );
 }

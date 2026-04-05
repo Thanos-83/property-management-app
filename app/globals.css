@@ -36,11 +36,11 @@
   --priority-high-color: #dc2626;
 
   /* Task Status Colors */
-  --status-pending: #d97706;     /* amber-600 */
-  --status-accepted: #7c3aed;    /* purple-600 */
+  --status-pending: #d97706; /* amber-600 */
+  --status-accepted: #7c3aed; /* purple-600 */
   --status-in-progress: #2563eb; /* blue-600 */
-  --status-completed: #059669;   /* emerald-600 */
-  --status-cancelled: #dc2626;   /* red-600 */
+  --status-completed: #059669; /* emerald-600 */
+  --status-cancelled: #dc2626; /* red-600 */
 
   /* sidebar width */
   --sidebar-width: 260px;
@@ -53,7 +53,7 @@ button:hover {
 /* React Big Calendar Customization */
 .rbc-month-row {
   /* height: 115px !important; */
-  min-height: 105px !important; 
+  min-height: 105px !important;
   max-height: 105px !important;
   /* Prevent the row from stretching if the month has fewer weeks */
   flex: 0 0 105px !important;
@@ -78,7 +78,8 @@ button:hover {
   border-radius: var(--radius-sm);
 }
 
-.rbc-row-content>.rbc-row:has(.rbc-segment:has(.rbc-button-link.rbc-show-more)) {
+.rbc-row-content
+  > .rbc-row:has(.rbc-segment:has(.rbc-button-link.rbc-show-more)) {
   margin-top: auto;
   margin-bottom: 0.15rem;
 }
@@ -89,8 +90,28 @@ button:hover {
   background-color: transparent !important;
 }
 
-.rbc-date-cell{
+.rbc-date-cell {
   padding-right: 0 !important;
+}
+
+/* --- ADD YOUR CUSTOM THEME & ANIMATIONS HERE --- */
+/* Just the raw keyframes, nothing else needed! */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
 }
 
 /* Custom theme */

@@ -1,5 +1,5 @@
 'use server';
-import { redirect } from 'next/navigation';
+
 import { stripe } from '../utils/stripe/stripeServerClient';
 import { createClient } from '../utils/supabase/server';
 import Stripe from 'stripe';
@@ -75,8 +75,7 @@ export const createStripeSession = async (price: string) => {
     console.log('Iam here 2');
     console.log('Stripe Session 1: ', session.url);
 
-    return redirect(session.url as string);
-    // return { url: `${session.url}` };
+    return { url: session.url as string };
   }
 
   const stripeCustomer = await stripe.customers.create({
@@ -113,5 +112,5 @@ export const createStripeSession = async (price: string) => {
     });
   console.log('Stripe Session 2: ', session.url);
 
-  return redirect(session.url as string);
+  return { url: session.url as string };
 };

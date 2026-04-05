@@ -1,34 +1,10 @@
 'use client';
 
-import {
-  BadgeCheck,
-  Bell,
-  Book,
-  ChevronsUpDown,
-  CreditCard,
-  LogOut,
-  Menu,
-  Sparkles,
-  Sunset,
-  Trees,
-  Zap,
-} from 'lucide-react';
+import React from 'react';
+import Link from 'next/link';
+import { Home, Menu, LogOut, LayoutDashboard, CreditCard } from 'lucide-react';
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from '@/components/ui/navigation-menu';
 import {
   Sheet,
   SheetContent,
@@ -36,11 +12,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/utils/supabase/client';
-// import { NavUser } from '../dashboard/nav-user';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,36 +20,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { signOut } from '@/lib/actions/authActions';
-
-interface MenuItem {
-  title: string;
-  url: string;
-  description?: string;
-  icon?: React.ReactNode;
-  items?: MenuItem[];
-}
-
-interface Navbar1Props {
-  logo?: {
-    url: string;
-    src: string;
-    alt: string;
-    title: string;
-  };
-  menu?: MenuItem[];
-  auth?: {
-    login: {
-      title: string;
-      url: string;
-    };
-    signup: {
-      title: string;
-      url: string;
-    };
-  };
-}
 
 type UserType = {
   name: string;
@@ -86,355 +29,215 @@ type UserType = {
   avatar: string;
 };
 
-const HeaderHome = ({
-  logo = {
-    url: '/',
-    src: 'https://deifkwefumgah.cloudfront.net/shadcnblocks/block/logos/shadcnblockscom-icon.svg',
-    alt: 'logo',
-    title: 'Shadcnblocks.com',
-  },
-  menu = [
-    { title: 'Home', url: '/' },
-    {
-      title: 'Products',
-      url: '#',
-      items: [
-        {
-          title: 'Blog',
-          description: 'The latest industry news, updates, and info',
-          icon: <Book className='size-5 shrink-0' />,
-          url: '#',
-        },
-        {
-          title: 'Company',
-          description: 'Our mission is to innovate and empower the world',
-          icon: <Trees className='size-5 shrink-0' />,
-          url: '#',
-        },
-        {
-          title: 'Careers',
-          description: 'Browse job listing and discover our workspace',
-          icon: <Sunset className='size-5 shrink-0' />,
-          url: '#',
-        },
-        {
-          title: 'Support',
-          description:
-            'Get in touch with our support team or visit our community forums',
-          icon: <Zap className='size-5 shrink-0' />,
-          url: '#',
-        },
-      ],
-    },
-    {
-      title: 'Resources',
-      url: '#',
-      items: [
-        {
-          title: 'Help Center',
-          description: 'Get all the answers you need right here',
-          icon: <Zap className='size-5 shrink-0' />,
-          url: '#',
-        },
-        {
-          title: 'Contact Us',
-          description: 'We are here to help you with any questions you have',
-          icon: <Sunset className='size-5 shrink-0' />,
-          url: '#',
-        },
-        {
-          title: 'Status',
-          description: 'Check the current status of our services and APIs',
-          icon: <Trees className='size-5 shrink-0' />,
-          url: '#',
-        },
-        {
-          title: 'Terms of Service',
-          description: 'Our terms and conditions for using our services',
-          icon: <Book className='size-5 shrink-0' />,
-          url: '#',
-        },
-      ],
-    },
-    {
-      title: 'Pricing',
-      url: '#',
-    },
-    {
-      title: 'Blog',
-      url: '/blog',
-    },
-  ],
-  auth = {
-    login: { title: 'Login', url: '/auth/login' },
-    signup: { title: 'Sign up', url: '/auth/register' },
-  },
-  user,
-}: Navbar1Props & { user: UserType | null }) => {
-  
+const navLinks = [
+  { title: 'Features', url: '#features' },
+  { title: 'Workflow', url: '#how-it-works' },
+  { title: 'Pricing', url: '#pricing' },
+  { title: 'FAQ', url: '#faq' },
+];
 
- 
+export const HeaderHome = ({ user }: { user: UserType | null }) => {
   return (
-    <section className='px-6 py-2 sticky top-0 bg-background shadow z-[9999]'>
-      <div className='container mx-auto'>
-        {/* Desktop Menu */}
-        <nav className='hidden py-1 justify-between lg:flex'>
-          <div className='flex flex-1 items-center gap-6'>
-            {/* Logo */}
-            <Link href={logo.url} className='flex items-center gap-2'>
-              <Image
-                src={logo.src}
-                // className='max-h-8 w-12'
-                width={24}
-                height={12}
-                alt={logo.alt}
-              />
-              <span className='text-lg font-semibold tracking-tighter'>
-                {logo.title}
-              </span>
-            </Link>
-            <div className='flex mx-auto items-center'>
-              <NavigationMenu>
-                <NavigationMenuList >
-                  {menu.map((item) => renderMenuItem(item))}
-                </NavigationMenuList>
-              </NavigationMenu>
+    // 1. The Outer Wrapper: Fixed to top, slight margin, centered
+    <header className='fixed inset-x-0 top-4 z-[50] mx-auto w-full max-w-6xl px-4 transition-all duration-300'>
+      {/* 2. The "Pill": Glassmorphism, rounded-full, subtle shadow */}
+      <div className='relative flex h-14 items-center justify-between rounded-full border border-zinc-200/60 bg-white/70 px-4 shadow-sm backdrop-blur-2xl sm:px-6'>
+        {/* --- LEFT: LOGO --- */}
+        <div className='flex shrink-0 items-center'>
+          <Link
+            href='/'
+            className='flex items-center gap-2 font-bold text-lg text-zinc-950 tracking-tight transition-transform hover:scale-105'>
+            <div className='flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white shadow-sm'>
+              <Home size={16} strokeWidth={2.5} />
             </div>
-          </div>
-          <div className='flex gap-4'>
-            {!user?.email ? (
-              <>
-                <Button className='flex-1' asChild variant='outline' size='lg'>
-                  <Link href={auth.login.url}>{auth.login.title}</Link>
-                </Button>
-                <Button className='flex-1' asChild size='lg'>
-                  <Link href={auth.signup.url}>{auth.signup.title}</Link>
-                </Button>
-              </>
-            ) : (
-              <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size='lg'
-                      variant='ghost'
-                      className='py-6 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'>
-                      <Avatar className='h-8 w-8 rounded-lg'>
-                        <AvatarImage
-                          src={user.avatar}
-                          alt={user.name}
-                        />
-                        <AvatarFallback className='rounded-lg'>
-                          CN
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className='grid flex-1 text-left text-sm leading-tight'>
-                        <span className='truncate font-medium'>
-                          {user.name}
-                        </span>
-                        <span className='truncate text-xs'>
-                          {user.email}
-                        </span>
-                      </div>
-                      <ChevronsUpDown className='ml-auto size-4' />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    className='w-(--radix-dropdown-menu-trigger-width) z-[10000] min-w-56 rounded-lg'
-                    side={true ? 'bottom' : 'right'}
-                    align='end'
-                    sideOffset={4}>
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem>
-                        <Sparkles />
-                        Upgrade to Pro
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          className='cursor-pointer flex items-center gap-2 w-full'
-                          href='https://app.myapp.site:3000/dashboard'>
-                          <BadgeCheck />
-                          Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          className='cursor-pointer flex items-center gap-2 w-full'
-                          href='https://app.myapp.site:3000/dashboard/pricing'>
-                          <CreditCard />
-                          Billing
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Bell />
-                        Notifications
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Button
-                        className='w-full  flex items-center justify-start'
-                        variant='ghost'
-                        onClick={() => signOut()}>
-                        <LogOut />
-                        Log out
-                      </Button>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            )}
-          </div>
+            HostOS
+          </Link>
+        </div>
+
+        {/* --- CENTER: NAVIGATION (Hidden on Mobile) --- */}
+        {/* Absolute positioning ensures it is always perfectly centered */}
+        <nav className='flex-1 justify-center hidden md:flex items-center gap-8'>
+          {navLinks.map((link) => (
+            <Link
+              key={link.title}
+              href={link.url}
+              className='text-sm font-medium text-zinc-600 hover:text-zinc-950 transition-colors'>
+              {link.title}
+            </Link>
+          ))}
         </nav>
 
-        {/* Mobile Menu */}
-        <div className='block lg:hidden'>
-          <div className='flex items-center justify-between'>
-            {/* Logo */}
-            <Link href={logo.url} className='flex items-center gap-2'>
-              <Image
-                src={logo.src}
-                className='max-h-8'
-                width={24}
-                height={12}
-                alt={logo.alt}
-              />
-            </Link>
-            <div className='flex items-center gap-2'>
-              <Avatar className='h-8 w-8 rounded-lg'>
-                <AvatarImage
-                  src={user?.avatar}
-                  alt={user?.name}
-                />
-                <AvatarFallback className='rounded-lg'>
-                  CN
-                </AvatarFallback>
-              </Avatar>
-              <Sheet>
+        {/* --- RIGHT: AUTH / USER MENU --- */}
+        <div className='flex shrink-0 items-center gap-3'>
+          {!user ? (
+            <div className='hidden sm:flex items-center gap-2'>
+              <Button
+                asChild
+                variant='ghost'
+                size='sm'
+                className='h-9 px-4 text-sm font-semibold text-zinc-600 hover:text-zinc-950 rounded-full'>
+                <Link href='/auth/login'>Log in</Link>
+              </Button>
+              <Button
+                asChild
+                size='sm'
+                className='h-9 rounded-full px-5 shadow-sm transition-all hover:shadow-md'>
+                <Link href='/auth/register'>Sign up</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className='hidden sm:flex'>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    className='relative h-9 w-9 rounded-full p-0 ring-1 ring-zinc-200 overflow-hidden shadow-sm hover:shadow-md transition-all'>
+                    <Avatar className='h-full w-full'>
+                      <AvatarImage src={user.avatar} alt={user.name} />
+                      <AvatarFallback className='bg-zinc-100 text-zinc-600 font-bold text-xs'>
+                        {user.name?.charAt(0).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className='w-56 rounded-xl border-zinc-200 mt-2'
+                  align='end'>
+                  <div className='flex items-center justify-start gap-2 p-2'>
+                    <div className='flex flex-col space-y-0.5 leading-none'>
+                      <p className='font-semibold text-sm text-zinc-900'>
+                        {user.name}
+                      </p>
+                      <p className='text-xs text-zinc-500 truncate w-[180px]'>
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild className='cursor-pointer'>
+                      <Link
+                        href='https://app.myapp.site:3000/dashboard'
+                        className='w-full flex items-center'>
+                        <LayoutDashboard className='mr-2 h-4 w-4 text-zinc-500' />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className='cursor-pointer'>
+                      <Link
+                        href='https://app.myapp.site:3000/dashboard/pricing'
+                        className='w-full flex items-center'>
+                        <CreditCard className='mr-2 h-4 w-4 text-zinc-500' />
+                        Billing
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => signOut()}
+                    className='cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50'>
+                    <LogOut className='mr-2 h-4 w-4' />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+
+          {/* --- MOBILE MENU TRIGGER --- */}
+          <div className='md:hidden'>
+            <Sheet>
               <SheetTrigger asChild>
-                <Button variant='outline' size='icon'>
-                  <Menu className='size-4' />
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='h-9 w-9 rounded-full text-zinc-600'>
+                  <Menu className='h-5 w-5' />
+                  <span className='sr-only'>Toggle menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent className='overflow-y-auto'>
-                <SheetHeader>
+              <SheetContent
+                side='right'
+                className='w-full max-w-xs border-l border-zinc-200 p-6 flex flex-col'>
+                <SheetHeader className='text-left mb-8'>
                   <SheetTitle>
-                    <Link href={logo.url} className='flex items-center gap-2'>
-                      <Image
-                        src={logo.src}
-                        className='max-h-8'
-                        width={24}
-                        height={12}
-                        alt={logo.alt}
-                      />
+                    <Link
+                      href='/'
+                      className='flex items-center gap-2 font-bold text-xl text-zinc-950'>
+                      <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white'>
+                        <Home size={18} />
+                      </div>
+                      HostOS
                     </Link>
                   </SheetTitle>
                 </SheetHeader>
-                <div className='flex flex-col gap-6 p-4'>
-                  <Accordion
-                    type='single'
-                    collapsible
-                    className='flex w-full flex-col gap-4'>
-                    {menu.map((item) => renderMobileMenuItem(item))}
-                  </Accordion>
-                  {user ? (
-                    <div className='flex flex-col gap-3'>
-                      <DropdownMenuSeparator/>
-                      <Link className='flex items-center gap-2' href='https://app.myapp.site:3000/dashboard'>
-                          <BadgeCheck />
-                           <span> Dashboard</span>
-                      </Link>
-                    </div>
-                ) : (
-                  <div className='flex flex-col gap-3'>
-                    <Button asChild variant='outline'>
-                      <a href={auth.login.url}>{auth.login.title}</a>
-                    </Button>
-                    <Button asChild>
-                      <a href={auth.signup.url}>{auth.signup.title}</a>
-                    </Button>
-                  </div>
-                )}
+
+                {/* Mobile Links */}
+                <div className='flex flex-col gap-6 flex-1'>
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.title}
+                      href={link.url}
+                      className='text-lg font-semibold text-zinc-800 hover:text-primary transition-colors'>
+                      {link.title}
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Mobile Auth */}
+                <div className='flex flex-col gap-3 mt-auto pt-6 border-t border-zinc-100'>
+                  {!user ? (
+                    <>
+                      <Button
+                        asChild
+                        variant='outline'
+                        className='w-full rounded-xl border-zinc-200 h-12'>
+                        <Link href='/auth/login'>Log in</Link>
+                      </Button>
+                      <Button asChild className='w-full rounded-xl h-12'>
+                        <Link href='/auth/register'>Start free trial</Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className='flex items-center gap-3 mb-4 p-2 rounded-lg bg-zinc-50'>
+                        <Avatar className='h-10 w-10'>
+                          <AvatarImage src={user.avatar} alt={user.name} />
+                          <AvatarFallback className='bg-zinc-200'>
+                            {user.name?.charAt(0) || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className='flex flex-col'>
+                          <span className='text-sm font-bold text-zinc-900'>
+                            {user.name}
+                          </span>
+                          <span className='text-xs text-zinc-500 truncate max-w-[150px]'>
+                            {user.email}
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        asChild
+                        variant='outline'
+                        className='w-full justify-start h-11 border-zinc-200 rounded-xl'>
+                        <Link href='https://app.myapp.site:3000/dashboard'>
+                          <LayoutDashboard className='mr-2 h-4 w-4' /> Dashboard
+                        </Link>
+                      </Button>
+                      <Button
+                        variant='ghost'
+                        onClick={() => signOut()}
+                        className='w-full justify-start h-11 rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50'>
+                        <LogOut className='mr-2 h-4 w-4' /> Log out
+                      </Button>
+                    </>
+                  )}
                 </div>
               </SheetContent>
-              </Sheet>
-            </div>
+            </Sheet>
           </div>
         </div>
       </div>
-    </section>
+    </header>
   );
 };
-
-const renderMenuItem = (item: MenuItem) => {
-  if (item.items) {
-    return (
-      <NavigationMenuItem key={item.title}>
-        <NavigationMenuTrigger>{item.title}</NavigationMenuTrigger>
-        <NavigationMenuContent className=' bg-popover text-popover-foreground'>
-          {item.items.map((subItem) => (
-            <NavigationMenuLink asChild key={subItem.title} className='w-80 '>
-              <SubMenuLink item={subItem} />
-            </NavigationMenuLink>
-          ))}
-        </NavigationMenuContent>
-      </NavigationMenuItem>
-    );
-  }
-
-  return (
-    <NavigationMenuItem key={item.title}>
-      <Link
-        href={item.url}
-        className='group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted hover:text-accent-foreground'>
-        {item.title}
-      </Link>
-    </NavigationMenuItem>
-  );
-};
-
-const renderMobileMenuItem = (item: MenuItem) => {
-  if (item.items) {
-    return (
-      <AccordionItem key={item.title} value={item.title} className='border-b-0'>
-        <AccordionTrigger className='text-md py-0 font-semibold hover:no-underline'>
-          {item.title}
-        </AccordionTrigger>
-        <AccordionContent className='mt-2'>
-          {item.items.map((subItem) => (
-            <SubMenuLink key={subItem.title} item={subItem} />
-          ))}
-        </AccordionContent>
-      </AccordionItem>
-    );
-  }
-
-  return (
-    <a key={item.title} href={item.url} className='text-md font-semibold'>
-      {item.title}
-    </a>
-  );
-};
-
-const SubMenuLink = ({ item }: { item: MenuItem }) => {
-  return (
-    <Link
-      className='flex flex-row gap-4 rounded-md p-3 leading-none no-underline transition-colors outline-none select-none hover:bg-muted hover:text-accent-foreground'
-      href={item.url}>
-      <div className='text-foreground'>{item.icon}</div>
-      <div>
-        <div className='text-sm font-semibold'>{item.title}</div>
-        {item.description && (
-          <p className='text-sm leading-snug text-muted-foreground'>
-            {item.description}
-          </p>
-        )}
-      </div>
-    </Link>
-  );
-};
-
-export { HeaderHome };
