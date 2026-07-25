@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MoreHorizontal, Pencil, Trash } from 'lucide-react';
+import { MoreHorizontal, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,11 +19,13 @@ interface BookingActionsCellProps {
   properties: { id: string; title: string }[];
 }
 
-export function BookingActionsCell({ booking, properties }: BookingActionsCellProps) {
+export function BookingActionsCell({
+  booking,
+  properties,
+}: BookingActionsCellProps) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  console.log('Booking in actions cell: ', booking);
-  console.log('Properties in actions cell: ', properties);
-    return (
+
+  return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -35,9 +37,10 @@ export function BookingActionsCell({ booking, properties }: BookingActionsCellPr
         <DropdownMenuContent align='end'>
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={(e) => {
-            setTimeout(() => setIsSheetOpen(true), 0);
-          }}>
+          <DropdownMenuItem
+            onSelect={() => {
+              setTimeout(() => setIsSheetOpen(true), 0);
+            }}>
             <Pencil className='mr-2 h-4 w-4' />
             Edit
           </DropdownMenuItem>

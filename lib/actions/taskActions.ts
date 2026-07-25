@@ -2,7 +2,12 @@
 
 import { createClient } from '../utils/supabase/server';
 
-import { taskDetailsSchema, TaskDetailsSchemaType, taskSchema, TaskSchemaType } from '@/lib/schemas/task';
+import {
+  taskDetailsSchema,
+  TaskDetailsSchemaType,
+  taskSchema,
+  TaskSchemaType,
+} from '@/lib/schemas/task';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { toUTC } from '../utils/calendarUtils';
 import { format } from 'date-fns';
@@ -30,7 +35,7 @@ export const fetchTasksAction = async () => {
         property:properties!property_id (
           title
         )
-        `
+        `,
       )
       .eq('assigner_id', user?.id)
       .order('scheduled_date', { ascending: true });
@@ -70,36 +75,51 @@ export const fetchTasksByPropertyAction = async (propertyId: string) => {
 };
 
 export const createTaskAction = async (taskData: any) => {
-  // Note: Replace `any` with your specific schema type if using Zod parsing here, 
+  // Note: Replace `any` with your specific schema type if using Zod parsing here,
   // but be careful because `taskId` will be an empty string '' from the create form.
 
   try {
     const supabase = await createClient();
     const supabaseAdmin = createServiceClient();
 
-    const { data: {user} } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if(!user) {
+    if (!user) {
       return { error: 'Unauthorized', status: 401 };
     }
     // 1. Separate the nested arrays and the frontend-only taskId
-    const { taskTodos, taskId, newAttachments, attachmentsToRemove, ...dbTaskData } = taskData;
+    const {
+      taskTodos,
+      taskId,
+      newAttachments,
+      attachmentsToRemove,
+      ...dbTaskData
+    } = taskData;
 
     // 2. Insert the Parent Task
     const { data, error } = await supabaseAdmin
       .from('tasks')
-      .insert([{
-        ...dbTaskData,
-        // Ensure data types are strictly correct for Supabase
-        priority: dbTaskData.priority ? parseInt(dbTaskData.priority, 10) : null,
-        team_member_id: dbTaskData.team_member_id === 'unassigned' ? null : dbTaskData.team_member_id,
-        assigner_id: user?.id,
-        scheduled_date: toUTC(dbTaskData.scheduled_date)?.toISOString(),  
-      }])
+      .insert([
+        {
+          ...dbTaskData,
+          // Ensure data types are strictly correct for Supabase
+          priority: dbTaskData.priority
+            ? parseInt(dbTaskData.priority, 10)
+            : null,
+          team_member_id:
+            dbTaskData.team_member_id === 'unassigned'
+              ? null
+              : dbTaskData.team_member_id,
+          assigner_id: user?.id,
+          scheduled_date: toUTC(dbTaskData.scheduled_date)?.toISOString(),
+        },
+      ])
       .select()
       .single();
 
-    console.log('Data from adding task: ', data);
+    // console.log('Data from adding task: ', data);
 
     if (error) {
       console.error('Error adding task:', error);
@@ -122,7 +142,7 @@ export const createTaskAction = async (taskData: any) => {
 
       if (todosError) {
         // FIXED: Now correctly logging todosError instead of error
-        console.error('Error adding checklist items:', todosError); 
+        console.error('Error adding checklist items:', todosError);
         return { error: todosError.message, status: 500 };
       }
     }
@@ -133,9 +153,11 @@ export const createTaskAction = async (taskData: any) => {
         file_url: att.file_url,
         file_name: att.file_name,
         file_type: att.file_type,
-        uploaded_by: user?.id
+        uploaded_by: user?.id,
       }));
-      const { error: attachmentsError } = await supabase.from('task_attachments').insert(attachmentsToInsert);
+      const { error: attachmentsError } = await supabase
+        .from('task_attachments')
+        .insert(attachmentsToInsert);
       if (attachmentsError) {
         console.error('Error adding attachments:', attachmentsError);
         return { error: attachmentsError.message, status: 500 };
@@ -144,12 +166,14 @@ export const createTaskAction = async (taskData: any) => {
 
     // Log Task Creation
     await supabase.from('task_activity').insert({
-      task_id: data.id, user_id: user.id, activity_type: 'system_log', content: 'Created this task'
+      task_id: data.id,
+      user_id: user.id,
+      activity_type: 'system_log',
+      content: 'Created this task',
     });
 
-
     // 4. Revalidate cache to instantly update the UI
-    revalidateTag('tasks'); 
+    revalidateTag('tasks');
 
     return { data, status: 201 };
   } catch (error) {
@@ -186,7 +210,7 @@ export const fetchTaskStatusDataAction = async () => {
 
 export const updateTaskStatusAction = async (
   taskId: string,
-  status: string
+  status: string,
 ) => {
   try {
     const supabase = await createClient();
@@ -220,21 +244,30 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
     return { error: parsed.error, status: 400 };
   }
 
-  // console.log('Task data server: ', taskData);
+  console.log('Task data server: ', parsed.data);
   try {
-    const {taskTodos, taskId, newAttachments, attachmentsToRemove, ...taskData} = parsed.data;
+    const {
+      taskTodos,
+      taskId,
+      newAttachments,
+      attachmentsToRemove,
+      ...taskData
+    } = parsed.data;
     const supabase = await createClient();
 
-    const {data:{user}} = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if(!user) {
+    if (!user) {
       return { error: 'Unauthorized', status: 401 };
     }
-    
+
     // Fetch the old task to compare changes for logging
     const { data: oldTask } = await supabase
       .from('tasks')
-      .select(`
+      .select(
+        `
         status, 
         priority:task_priorities(
           id,
@@ -246,20 +279,32 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
           id
         ),
         scheduled_date
-      `)
+      `,
+      )
       .eq('id', taskId)
       .single();
-    
-    // --- CRITICAL FIX 1: Normalize the new team member ID ---
-    // The form sends 'unassigned', but the database needs 'null'
-    const newTeamMemberId = taskData.team_member_id === 'unassigned' ? null : taskData.team_member_id;
 
-      
+    // The form sends 'unassigned', but the database needs 'null'
+    const newTeamMemberId =
+      taskData.team_member_id === 'unassigned' ? null : taskData.team_member_id;
+
     const { data, error } = await supabase
       .from('tasks')
-      .update({ ...taskData, priority: parseInt(taskData.priority, 10), scheduled_date: toUTC(taskData.scheduled_date)?.toISOString() })
+      .update({
+        ...taskData,
+        team_member_id: newTeamMemberId,
+        priority: parseInt(taskData.priority, 10),
+        scheduled_date: toUTC(taskData.scheduled_date)?.toISOString(),
+      })
       .eq('id', taskId)
       .select();
+
+    // ADD THIS CHECK:
+    if (data && data.length === 0) {
+      console.warn(
+        '🚨 ZERO ROWS UPDATED! Supabase RLS is silently blocking the update on the tasks table.',
+      );
+    }
 
     if (error) {
       console.error('Error updating task:', error);
@@ -268,8 +313,8 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
 
     // 2. Prepare the Todos (CRITICAL: Add the task_id to every item!)
     const formattedTodos = taskTodos.map((todo) => ({
-      id: todo.id,          
-      task_id: taskId,           
+      id: todo.id,
+      task_id: taskId,
       description: todo.description,
       is_completed: todo.is_completed,
       sort_order: todo.sort_order,
@@ -281,7 +326,7 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
     if (formattedTodos.length > 0) {
       const { error: upsertError } = await supabase
         .from('task_list_item')
-        .upsert(formattedTodos); 
+        .upsert(formattedTodos);
 
       if (upsertError) {
         console.error('Error upserting task todos:', upsertError);
@@ -290,8 +335,8 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
     }
 
     // 4. Handle Deletions (Delete any items that the user removed in the UI)
-    const idsToKeep = formattedTodos.map(t => t.id);
-    
+    const idsToKeep = formattedTodos.map((t) => t.id);
+
     if (idsToKeep.length > 0) {
       // Delete rows that belong to this task, but are NOT in our updated list
       await supabase
@@ -301,10 +346,7 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
         .not('id', 'in', `(${idsToKeep.join(',')})`);
     } else {
       // If the array is empty, it means the user deleted EVERY checklist item
-      await supabase
-        .from('task_list_item')
-        .delete()
-        .eq('task_id', taskId);
+      await supabase.from('task_list_item').delete().eq('task_id', taskId);
     }
 
     // 4. Handle Attachment Deletions (Physical Storage & Database)
@@ -320,16 +362,17 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
       if (recordsToDelete && recordsToDelete.length > 0) {
         // Extract the filenames/paths from the URLs
         const paths = recordsToDelete
-          .map(r => r.file_url.split('/').pop())
+          .map((r) => r.file_url.split('/').pop())
           .filter(Boolean) as string[];
-        
+
         if (paths.length > 0) {
           // Remove physical files from Supabase Storage
           const { error: storageError } = await supabase.storage
             .from('task_attachments')
             .remove(paths);
-            
-          if (storageError) console.error('Error cleaning up storage bucket:', storageError);
+
+          if (storageError)
+            console.error('Error cleaning up storage bucket:', storageError);
         }
       }
 
@@ -339,7 +382,8 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
         .delete()
         .in('id', attachmentsToRemove);
       if (!deleteError) removedCount = attachmentsToRemove.length;
-      if (deleteError) console.error('Error removing attachment records:', deleteError);
+      if (deleteError)
+        console.error('Error removing attachment records:', deleteError);
     }
 
     // 5. Handle New Attachment Insertions
@@ -350,43 +394,55 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
         file_url: att.file_url,
         file_name: att.file_name,
         file_type: att.file_type,
-        uploaded_by: user.id
+        uploaded_by: user.id,
       }));
 
       const { error: insertError } = await supabase
         .from('task_attachments')
         .insert(attachmentsToInsert);
       if (!insertError) addedCount = newAttachments.length;
-      if (insertError) console.error('Error saving new attachments:', insertError);
+      if (insertError)
+        console.error('Error saving new attachments:', insertError);
     }
-
 
     // 6. Generate System Activity Logs
     const activitiesToLog = [];
     // 6.1 Status Change
     if (oldTask && taskData.status && oldTask.status !== taskData.status) {
       activitiesToLog.push({
-        task_id: taskId, user_id: user.id, activity_type: 'system_log',
-        content: `Changed status to **${taskData.status.replace('_', ' ')}**`
+        task_id: taskId,
+        user_id: user.id,
+        activity_type: 'system_log',
+        content: `Changed status to **${taskData.status.replace('_', ' ')}**`,
       });
     }
 
-    const oldPriority: any = oldTask?.priority; 
-    const oldPriorityId : number = oldPriority?.id;
+    const oldPriority: any = oldTask?.priority;
+    const oldPriorityId: number = oldPriority?.id;
     // 6.2 Priority Change
-    if (oldTask && taskData.priority && String(oldPriorityId) !== taskData.priority) { 
-      const {data: newTaskPriorityData} = await supabase.from('task_priorities').select('priority').eq('id', taskData.priority).single();
+    if (
+      oldTask &&
+      taskData.priority &&
+      String(oldPriorityId) !== taskData.priority
+    ) {
+      const { data: newTaskPriorityData } = await supabase
+        .from('task_priorities')
+        .select('priority')
+        .eq('id', taskData.priority)
+        .single();
       activitiesToLog.push({
-        task_id: taskId, user_id: user.id, activity_type: 'system_log',
-        content: `Changed priority to **${newTaskPriorityData?.priority}**`
+        task_id: taskId,
+        user_id: user.id,
+        activity_type: 'system_log',
+        content: `Changed priority to **${newTaskPriorityData?.priority}**`,
       });
     }
 
     // 6.3 Team Member Change
     // Safely extract the old ID whether Supabase returns an object or an array of objects
     const oldTeamMemberRaw = oldTask?.team_member as any;
-    const oldTeamMemberId = Array.isArray(oldTeamMemberRaw) 
-      ? oldTeamMemberRaw[0]?.id 
+    const oldTeamMemberId = Array.isArray(oldTeamMemberRaw)
+      ? oldTeamMemberRaw[0]?.id
       : oldTeamMemberRaw?.id || null;
 
     // We already normalized the newTeamMemberId at the top of the file!
@@ -394,10 +450,10 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
       if (newTeamMemberId === null) {
         // Case A: The task was unassigned
         activitiesToLog.push({
-          task_id: taskId, 
-          user_id: user.id, 
+          task_id: taskId,
+          user_id: user.id,
           activity_type: 'system_log',
-          content: `Changed team member to **Unassigned**`
+          content: `Changed team member to **Unassigned**`,
         });
       } else {
         // Case B: The task was assigned to someone new
@@ -405,48 +461,60 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
           .from('team_members')
           .select('first_name, last_name')
           .eq('id', newTeamMemberId)
-          .single(); 
-          
-        const fullName = `${newTeamMemberData?.first_name || ''} ${newTeamMemberData?.last_name || ''}`.trim() || 'Unknown Member';
+          .single();
+
+        const fullName =
+          `${newTeamMemberData?.first_name || ''} ${newTeamMemberData?.last_name || ''}`.trim() ||
+          'Unknown Member';
 
         activitiesToLog.push({
-          task_id: taskId, 
-          user_id: user.id, 
+          task_id: taskId,
+          user_id: user.id,
           activity_type: 'system_log',
-          content: `Changed team member to **${fullName}**`
+          content: `Changed team member to **${fullName}**`,
         });
       }
     }
-    
+
     // 6.4 File Attachment
     if (addedCount > 0) {
       activitiesToLog.push({
-        task_id: taskId, user_id: user.id, activity_type: 'system_log',
-        content: `Attached ${addedCount} new file(s)`
+        task_id: taskId,
+        user_id: user.id,
+        activity_type: 'system_log',
+        content: `Attached ${addedCount} new file(s)`,
       });
     }
 
     // 6.5 File Removal
     if (removedCount > 0) {
       activitiesToLog.push({
-        task_id: taskId, user_id: user.id, activity_type: 'system_log',
-        content: `Removed ${removedCount} file(s)`
+        task_id: taskId,
+        user_id: user.id,
+        activity_type: 'system_log',
+        content: `Removed ${removedCount} file(s)`,
       });
     }
 
     // 6.6 Scheduled Date Change
     if (oldTask?.scheduled_date && taskData.scheduled_date) {
-      const oldDate = new Date(oldTask.scheduled_date).setHours(0,0,0,0);
-      const newDate = new Date(taskData.scheduled_date).setHours(0,0,0,0);
+      const oldDate = new Date(oldTask.scheduled_date).setHours(0, 0, 0, 0);
+      const newDate = new Date(taskData.scheduled_date).setHours(0, 0, 0, 0);
 
       if (oldDate !== newDate) {
-        const formattedOldDate = format(new Date(oldTask.scheduled_date), 'MMM d, yyyy');
-        const formattedNewDate = format(new Date(taskData.scheduled_date), 'MMM d, yyyy');
+        const formattedOldDate = format(
+          new Date(oldTask.scheduled_date),
+          'MMM d, yyyy',
+        );
+        const formattedNewDate = format(
+          new Date(taskData.scheduled_date),
+          'MMM d, yyyy',
+        );
         activitiesToLog.push({
-          task_id: taskId, 
-          user_id: user.id, 
+          task_id: taskId,
+          user_id: user.id,
           activity_type: 'system_log',
-          content: `Changed scheduled date from **${formattedOldDate}** to **${formattedNewDate}**`
+          content: `Changed scheduled date from **${formattedOldDate}** to **${formattedNewDate}**`,
         });
       }
     }
@@ -464,15 +532,19 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
 };
 
 export const deleteTaskByIdAction = async (taskId: string) => {
-  try { 
+  try {
     const supabase = await createClient();
 
     const response = await supabase.from('tasks').delete().eq('id', taskId);
-    revalidateTag('tasks');
-    return {data: response.data, status: response.status, error: response.error};
+    // revalidateTag('tasks');
+    return {
+      data: response.data,
+      status: response.status,
+      error: response.error,
+    };
   } catch (error) {
     console.log('Error deleting tasks: ', error);
-    return {data: null, status: 500, error: 'Error deleting tasks'};
+    return { data: null, status: 500, error: 'Error deleting tasks' };
   }
 };
 
@@ -509,7 +581,7 @@ export const fetchTaskTypesAction = async () => {
     const { data: taskTypes, error } = await supabase
       .from('task_types')
       .select('id, name')
-      .eq('is_active', true)
+      .eq('is_active', true);
 
     // console.log('Task types server: ', taskTypes);
     if (error) {
@@ -528,33 +600,37 @@ export const fetchTaskTypesAction = async () => {
   }
 };
 
-
 /**
  * Add a manual comment to a task
  */
 export const addTaskCommentAction = async (taskId: string, content: string) => {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: "Unauthorized", status: 401 };
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: 'Unauthorized', status: 401 };
 
-    const {data, error } = await supabase.from('task_activity').insert({
-      task_id: taskId,
-      user_id: user.id,
-      activity_type: 'user_comment',
-      content: content.trim()
-    }).select().single();
- 
+    const { data, error } = await supabase
+      .from('task_activity')
+      .insert({
+        task_id: taskId,
+        user_id: user.id,
+        activity_type: 'user_comment',
+        content: content.trim(),
+      })
+      .select()
+      .single();
+
     if (error) return { error: error.message, status: 500 };
 
-    return {data, status: 201, error: null };
+    return { data, status: 201, error: null };
   } catch (error) {
     console.error('Error adding comment:', error);
     return { error: 'Failed to add comment', status: 500, data: null };
-  }finally{
+  } finally {
     revalidatePath('/dashboard/calendar', 'page');
     revalidatePath('/dashboard/tasks', 'page');
-    revalidatePath(`/member/tasks/${taskId}`, 'page'); 
-
+    revalidatePath(`/member/tasks/${taskId}`, 'page');
   }
 };

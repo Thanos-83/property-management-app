@@ -1,11 +1,18 @@
 'use server';
 import { createClient } from '../utils/supabase/server';
-import { ManagePropertySchemaType, createPropertySchema, CreatePropertySchemaType, managePropertySchema } from '../schemas/property';
+import {
+  ManagePropertySchemaType,
+  createPropertySchema,
+  CreatePropertySchemaType,
+  managePropertySchema,
+} from '../schemas/property';
 import { propertyIcalSchema } from '../schemas/property';
 
 import { revalidateTag } from 'next/cache';
 
-export const addPropertyAction = async (propertyData: CreatePropertySchemaType) => {
+export const addPropertyAction = async (
+  propertyData: CreatePropertySchemaType,
+) => {
   const supabase = await createClient();
 
   // Auth: get the user from supabase session
@@ -30,8 +37,7 @@ export const addPropertyAction = async (propertyData: CreatePropertySchemaType) 
     };
   }
 
-  const { title, description, location, rooms } =
-    parsedData.data;
+  const { title, description, location, rooms } = parsedData.data;
 
   // Insert into database
   const { data, error } = await supabase
@@ -55,7 +61,10 @@ export const addPropertyAction = async (propertyData: CreatePropertySchemaType) 
   return { property: data, status: 201, success: true };
 };
 
-export const updatePropertyAction = async(propertyId: string, updatePropertyData: ManagePropertySchemaType) =>{
+export const updatePropertyAction = async (
+  propertyId: string,
+  updatePropertyData: ManagePropertySchemaType,
+) => {
   const supabase = await createClient();
 
   console.log('Update Property Data in Server Action: ', updatePropertyData);
@@ -80,11 +89,9 @@ export const updatePropertyAction = async(propertyId: string, updatePropertyData
     };
   }
 
+  const { title, description, location, rooms, image_url } = parsedData.data;
 
-  const { title, description, location, rooms, image_url } =
-    parsedData.data;
-
-    const { data: updatedProperty, error : updateError } = await supabase
+  const { data: updatedProperty, error: updateError } = await supabase
     .from('properties')
     .update({
       title,
@@ -95,14 +102,14 @@ export const updatePropertyAction = async(propertyId: string, updatePropertyData
     })
     .eq('id', propertyId);
 
-    if (updateError) {
-      console.log('Error: ', updateError);
-      return { error: updateError, status: 500, success: false };
-    }
+  if (updateError) {
+    console.log('Error: ', updateError);
+    return { error: updateError, status: 500, success: false };
+  }
 
-    revalidateTag('properties');
-    return {status: 200, result: 'success', error: null};
-}
+  revalidateTag('properties');
+  return { status: 200, result: 'success', error: null };
+};
 
 export const getPropertiesDataAction = async () => {
   try {
@@ -125,7 +132,7 @@ export const getPropertiesDataAction = async () => {
         `
       *,
       property_icals(*)
-    `
+    `,
       )
       .eq('owner_id', user?.id);
 
@@ -219,8 +226,8 @@ export const addPropertyIcalAction = async ({
     })
     .select()
     .single();
-    // console.log('Response adding iCal URL: ', data);
-    // console.log('Error adding iCal URL: ', error);
+  // console.log('Response adding iCal URL: ', data);
+  // console.log('Error adding iCal URL: ', error);
   if (error) {
     console.log('Error adding iCal URL: ', error);
     return { error: error.message, status: 500, data: null };
@@ -241,7 +248,7 @@ export const deletePropertyIcalAction = async (icalId: string) => {
     .delete()
     .eq('id', icalId);
 
-  // console.log('Supabase response:', response);
+  console.log('Supabase response:', response);
 
   if (response.error) {
     const errorResult = {
@@ -302,44 +309,53 @@ export const fetchPropertyData = async () => {
   return { user, apiData: data };
 };
 
-
 // ACTION 1: Toggle the template ON/OFF for ONE specific property
-export async function togglePropertyTemplateAction(propertyId: string, templateId: string, isActive: boolean) {
+export async function togglePropertyTemplateAction(
+  propertyId: string,
+  templateId: string,
+  isActive: boolean,
+) {
   const supabase = await createClient();
-  
+
   // We use upsert. If the link exists for this specific property, update it. If not, create it.
-  const { error } = await supabase
-    .from('property_template_link')
-    .upsert({
+  const { error } = await supabase.from('property_template_link').upsert(
+    {
       property_id: propertyId,
       template_id: templateId,
       is_active: isActive,
-    }, { 
+    },
+    {
       // This relies on the unique constraint we built in your database schema
-      onConflict: 'property_id,template_id' 
-    });
+      onConflict: 'property_id,template_id',
+    },
+  );
 
   if (error) throw new Error(error.message);
-  
+
   revalidateTag('properties');
   return { success: true };
 }
 
 // ACTION 2: Update the time offset for ONE specific property
-export async function updatePropertyTemplateOffsetAction(propertyId: string, templateId: string, offsetMinutes: number) {
+export async function updatePropertyTemplateOffsetAction(
+  propertyId: string,
+  templateId: string,
+  offsetMinutes: number,
+) {
   const supabase = await createClient();
   try {
     const { error } = await supabase
       .from('property_template_link')
       .update({ offset_minutes: offsetMinutes })
       // CRITICAL: We must match BOTH the property and the template!
-      .match({ property_id: propertyId, template_id: templateId }); 
+      .match({ property_id: propertyId, template_id: templateId });
 
-  if (error) throw new Error(error.message);
-  
-  revalidateTag('properties');
-  return { success: true, error: null };
-} catch (error) {
-  console.error('Error updating property template offset:', error);
-  return { success: false, error: error };
-}}
+    if (error) throw new Error(error.message);
+
+    revalidateTag('properties');
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Error updating property template offset:', error);
+    return { success: false, error: error };
+  }
+}
