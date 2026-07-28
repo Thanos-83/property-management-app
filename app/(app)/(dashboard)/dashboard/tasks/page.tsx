@@ -1,19 +1,42 @@
 import AddTaskModal from '@/components/tasks/AddTaskModal';
 import TasksTable from '@/components/tasks/TasksTable';
-// import TestTable from '@/components/tasks/TestTable';
-import { fetchTasksAction, fetchTaskPrioritiesAction } from '@/lib/actions/taskActions';
+import {
+  fetchTasksAction,
+  fetchTaskPrioritiesAction,
+  fetchTaskStatusDataAction,
+} from '@/lib/actions/taskActions';
 import { getPropertiesDataAction } from '@/lib/actions/propertiesActions';
 import { getTaskMembersAction } from '@/lib/actions/taskMemberActions';
+import { createClient } from '@/lib/utils/supabase/server';
+import { CurrentUserDisplayInfo } from '@/types/taskTypes';
 
 async function TasksPage() {
-  /* Fetch tasks and auxiliary data for AddTaskModal in parallel */
-  const [tasksResult, propertiesResult, membersResult, prioritiesResult] =
-    await Promise.all([
-      fetchTasksAction(),
-      getPropertiesDataAction(),
-      getTaskMembersAction(),
-      fetchTaskPrioritiesAction(),
-    ]);
+  // 1. Fetch the current authenticated user
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const currentUserInfo: CurrentUserDisplayInfo = {
+    id: user?.id || '',
+    full_name: user?.user_metadata?.full_name || 'Unknown',
+    avatar: user?.user_metadata?.avatar_url,
+  };
+
+  // 2. Fetch tasks and auxiliary data for AddTaskModal in parallel
+  const [
+    tasksResult,
+    propertiesResult,
+    membersResult,
+    prioritiesResult,
+    statusesResult,
+  ] = await Promise.all([
+    fetchTasksAction(),
+    getPropertiesDataAction(),
+    getTaskMembersAction(),
+    fetchTaskPrioritiesAction(),
+    fetchTaskStatusDataAction(),
+  ]);
 
   // Check if the result is an array (successful fetch)
   const tasks = Array.isArray(tasksResult) ? tasksResult : [];
@@ -36,6 +59,9 @@ async function TasksPage() {
       ? prioritiesResult.data
       : [];
 
+  const statuses =
+    !statusesResult.error && statusesResult.data ? statusesResult.data : [];
+
   return (
     <div className='group flex-1 overflow-y-auto p-4'>
       <div className='flex items-center justify-between'>
@@ -47,7 +73,15 @@ async function TasksPage() {
         />
       </div>
       <div className='mt-6'>
-        <TasksTable tableTasks={tasks} />
+        <TasksTable
+          tableTasks={tasks}
+          taskStatuses={statuses}
+          taskPriorities={priorities}
+          properties={properties}
+          members={members}
+          currentUserId={user?.id || ''}
+          currentUserInfo={currentUserInfo}
+        />
       </div>
       {!Array.isArray(tasksResult) && tasksResult.error && (
         <div className='mt-4 p-4 bg-red-100 text-red-800 rounded-md'>

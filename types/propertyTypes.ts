@@ -46,3 +46,33 @@ export type PropertyTemplateLinks = {
   is_active: boolean;
   offset_minutes: number;
 };
+
+export interface PropertyIcal {
+  id: string;
+  property_id: string;
+  platform: 'Expedia' | 'Vrbo' | 'Booking' | 'Airbnb' | string;
+  ical_url: string;
+  status: 'active' | 'inactive' | string;
+  sync_status: 'success' | 'failed' | 'pending' | string;
+  last_synced_at: string | null;
+  last_error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Property {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  image_url: string | null;
+  rooms: number;
+  default_check_in_time: string;
+  default_check_out_time: string;
+  owner_id: string;
+  company_id: string | null;
+  automation_template_id: string | null;
+  property_icals: PropertyIcal[];
+  created_at: string;
+  updated_at: string;
+}

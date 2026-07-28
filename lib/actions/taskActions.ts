@@ -5,13 +5,14 @@ import { createClient } from '../utils/supabase/server';
 import {
   taskDetailsSchema,
   TaskDetailsSchemaType,
-  taskSchema,
-  TaskSchemaType,
+  // taskSchema,
+  // TaskSchemaType,
 } from '@/lib/schemas/task';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { toUTC } from '../utils/calendarUtils';
 import { format } from 'date-fns';
 import { createServiceClient } from '../utils/supabase/supabaseDB';
+import { TASK_DETAILS_QUERY } from '../constants/queries';
 
 export const fetchTasksAction = async () => {
   try {
@@ -23,20 +24,7 @@ export const fetchTasksAction = async () => {
 
     const { data: tasks, error } = await supabase
       .from('tasks')
-      .select(
-        `
-        *,
-        team_members(
-          email,
-          first_name,
-          last_name,
-          phone
-        ),
-        property:properties!property_id (
-          title
-        )
-        `,
-      )
+      .select(TASK_DETAILS_QUERY)
       .eq('assigner_id', user?.id)
       .order('scheduled_date', { ascending: true });
 

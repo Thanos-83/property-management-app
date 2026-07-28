@@ -12,6 +12,12 @@ import Image from 'next/image';
 import { HelpCircleIcon } from 'lucide-react';
 import { BookingActionsCell } from './BookingActionsCell';
 import { TaskStatusCell } from './TaskStatusCell';
+import {
+  DetailedTask,
+  TaskPriority,
+  TaskStatusOption,
+} from '@/types/taskTypes';
+import { Property } from '@/types/propertyTypes';
 
 const getPlatformIcon = (platform: string) => {
   const p = platform.toLowerCase();
@@ -19,6 +25,7 @@ const getPlatformIcon = (platform: string) => {
   if (p.includes('booking')) return '/icons/booking.svg';
   if (p.includes('vrbo')) return '/icons/vrbo.svg';
   if (p.includes('expedia')) return '/icons/expedia.svg';
+  if (p.includes('Unknown')) return '';
   return null;
 };
 
@@ -178,8 +185,7 @@ export const columns: ColumnDef<TableBooking>[] = [
     header: 'Platform',
     size: 60, // Smaller width for icons
     cell: ({ row }) => {
-      const iconPath = getPlatformIcon(row.original.platform);
-
+      const iconPath = getPlatformIcon(row.original.platform || 'Unknown');
       if (iconPath) {
         return (
           <div className='flex items-center justify-start h-8 w-24'>
@@ -269,10 +275,18 @@ export const columns: ColumnDef<TableBooking>[] = [
     accessorKey: 'tasks',
     header: 'Tasks',
     cell: ({ row, table }) => {
-      const meta = table.options.meta as any;
+      const meta = table.options.meta as {
+        properties: Property[];
+        members: { id: string; name: string }[];
+        priorities: TaskPriority[];
+        taskStatus: TaskStatusOption[];
+        currentUserId: string;
+      };
+      console.log('Table Metadata: ', meta);
+      console.log('Row Original: ', row.original);
       return (
         <TaskStatusCell
-          tasks={(row.original as any).tasks || []}
+          tasks={(row.original as { tasks: DetailedTask[] })?.tasks || []}
           bookingId={row.original.id}
           bookingStatus={row.original.status}
           propertyId={row.original.property_id}
@@ -292,7 +306,9 @@ export const columns: ColumnDef<TableBooking>[] = [
     cell: ({ row, table }) => (
       <BookingActionsCell
         booking={row.original}
-        properties={(table.options.meta as any)?.properties || []}
+        properties={
+          (table.options.meta as { properties: Property[] }).properties || []
+        }
       />
     ),
     size: 40,

@@ -2,22 +2,17 @@
 
 import { createClient } from '../utils/supabase/server';
 import { BookingEvent, TableBooking } from '@/types/bookingTypes';
-// import { revalidatePath, revalidateTag } from 'next/cache';
+import { TASK_DETAILS_QUERY } from '@/lib/constants/queries';
 
 export const fetchBookingsAction = async () => {
   try {
     const supabase = await createClient();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    // const {
+    //   data: { user },
+    // } = await supabase.auth.getUser();
 
     // Fetch bookings directly from the bookings table
-    // We need to ensuring we only get bookings for properties owned by the user
-    // The RLS policy on 'bookings' should ideally handle this if it checks property ownership
-    // However, if RLS relies on property ownership, we might need a join or careful policy.
-    // Assuming RLS allows users to see bookings for their properties.
-
     const { data: bookings, error } = await supabase
       .from('bookings')
       .select(
@@ -27,51 +22,8 @@ export const fetchBookingsAction = async () => {
           title,
           location
         ),
-        tasks (
-          id,
-          type,
-          status,
-          priority,
-          notes,
-          team_member_id,
-          team_member:team_members!team_member_id (
-            first_name,
-            last_name
-          ),
-          scheduled_date,
-          property:properties!property_id (
-            title,
-            location,
-            id
-          ),
-          taskTodos:task_list_item!task_list_item_task_id_fkey (
-            description,
-            is_completed,
-            sort_order,
-            completed_by_member,
-            completed_datetime,
-            id
-          ),
-          teamMember:team_members!team_member_id(
-            first_name,
-            last_name
-          ),
-          attachments:task_attachments(
-            file_url,
-            file_name,
-            file_type,
-            uploaded_by,
-            id
-          ),
-          task_activity!task_id (
-            id,
-            activity_type,
-            content,
-            created_at,
-            user_id
-          )
-        )
-        `
+        tasks (${TASK_DETAILS_QUERY}) 
+        `,
       )
       .order('start_date', { ascending: false });
 
@@ -80,13 +32,7 @@ export const fetchBookingsAction = async () => {
       return [];
     }
 
-    // Transform data to match TableBooking interface if necessary
-    // The query above returns structure compatible with TableBooking (mostly)
-    // We might need to map some fields if exact names don't match or for computed fields.
-    // Based on the types:
-    // guest_name, start_date, end_date, platform, status are in bookings table.
-    // property.title is fetched.
-// console.log('Bookings: ',bookings[1].tasks)
+    // console.log('Bookings Tasks: ', bookings[1]?.tasks)
 
     return (bookings as unknown as TableBooking[]) || [];
   } catch (error) {
@@ -94,16 +40,17 @@ export const fetchBookingsAction = async () => {
     return [];
   }
 };
-
-export const updateBookingAction = async (data: Partial<BookingEvent> & { id: string }) => {
+export const updateBookingAction = async (
+  data: Partial<BookingEvent> & { id: string },
+) => {
   try {
     const supabase = await createClient();
     const { id, ...updates } = data;
-    console.log('Booking Data: ',data)
+    console.log('Booking Data: ', data);
     const { error } = await supabase
       .from('bookings')
       .update(updates)
-      .eq('id', id); 
+      .eq('id', id);
 
     if (error) {
       console.error('Error updating booking:', error);

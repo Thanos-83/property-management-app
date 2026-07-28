@@ -28,7 +28,6 @@ import {
   AlertTriangle,
   FileText,
   Home,
-  FileDiff,
 } from 'lucide-react';
 import { TableBooking } from '@/types/bookingTypes';
 import {

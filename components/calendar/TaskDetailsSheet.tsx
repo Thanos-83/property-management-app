@@ -17,8 +17,10 @@ import {
   FormControl,
 } from '@/components/ui/form';
 import {
-  SingleTask,
-  TaskTodo,
+  CurrentUserDisplayInfo,
+  DetailedTask,
+  TaskActivity,
+  TaskAttachment,
   TaskPrioritiesOption,
   TaskStatusOption,
 } from '@/types/taskTypes';
@@ -27,10 +29,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   useEffect,
   useMemo,
-  useOptimistic,
+  // useOptimistic,
   useRef,
   useState,
-  useTransition,
+  // useTransition,
 } from 'react';
 import {
   AlertTriangle,
@@ -94,18 +96,24 @@ import { createClient } from '@/lib/utils/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import TaskActivityTimeline from '../tasks/TaskActivityTimeline';
+import { Property } from '@/types/propertyTypes';
+
+interface TeamMember {
+  id: string;
+  name: string;
+}
 
 interface TaskDetailsSheetProps {
-  task: SingleTask | null;
+  task: DetailedTask | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  properties: any[];
-  teamMembers: any[];
+  properties: Property[];
+  teamMembers: TeamMember[];
   taskStatus: TaskStatusOption[];
   taskPriorities: TaskPrioritiesOption[];
   currentUserId: string;
-  currentUserInfo: any;
   currentDate: Date;
+  currentUserInfo?: CurrentUserDisplayInfo;
   bookingId?: string;
   propertyId?: string;
   mode?: 'create' | 'edit';
@@ -126,6 +134,11 @@ export function TaskDetailsSheet({
   propertyId,
   mode = 'edit',
 }: TaskDetailsSheetProps) {
+  // console.log('Current user info in Task Details Sheet: ', currentUserInfo);
+  // console.log('Current user id in Task Details Sheet: ', currentUserId);
+  console.log('Current team members in Task Details Sheet: ', teamMembers);
+  // console.log('Properties in Task Details Sheet: ', properties);
+  // console.log('Task in Task Details Sheet: ', task);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -136,11 +149,11 @@ export function TaskDetailsSheet({
   const [attachmentsToRemove, setAttachmentsToRemove] = useState<string[]>([]);
 
   // --- COMMENT STATES ---
-  const [commentText, setCommentText] = useState('Default value');
+  // const [commentText, setCommentText] = useState('Default value');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   // Local state base to prevent optimistic UI from reverting
-  const [baseActivities, setBaseActivities] = useState<any[]>([]);
+  const [baseActivities, setBaseActivities] = useState<TaskActivity[]>([]);
 
   const isCreateMode = mode === 'create';
 
@@ -193,7 +206,6 @@ export function TaskDetailsSheet({
     // Reset attachment states on open
     setNewFiles([]);
     setAttachmentsToRemove([]);
-    setCommentText('');
 
     // Set the baseActivities for the Optimistic UI
     setBaseActivities(task?.task_activity || []);
@@ -216,20 +228,24 @@ export function TaskDetailsSheet({
     } else if (task) {
       // POPULATE EXISTING DATA FOR EDIT MODE
       const matchStatus = taskStatus?.find(
-        (s: any) =>
+        (s: TaskStatusOption) =>
           String(s.id) === String(task?.status) ||
           s.status?.toLowerCase().trim() === task?.status?.toLowerCase().trim(),
       );
+
+      const rawPriorityId =
+        typeof task.priority === 'object' && task.priority !== null
+          ? task.priority.id
+          : task.priority;
+
       const matchPriority = taskPriorities?.find(
-        (p: any) =>
-          String(p.id) === String(task?.priority) ||
+        (p: TaskPrioritiesOption) =>
+          String(p.id) === String(rawPriorityId) ||
           p.priority?.toLowerCase().trim() ===
-            String(task?.priority).toLowerCase().trim(),
+            String(rawPriorityId).toLowerCase().trim(),
       );
 
-      const propertyID = task.property_id
-        ? task.property_id
-        : task.property?.id;
+      const propertyID = task.property_id ? task.property_id : '';
 
       form.reset({
         taskId: task.id,
@@ -240,12 +256,12 @@ export function TaskDetailsSheet({
           : (task?.status ?? ''),
         priority: matchPriority
           ? String(matchPriority.id)
-          : (String(task?.priority) ?? ''),
+          : (String(rawPriorityId) ?? ''),
         scheduled_date: task.scheduled_date
           ? new Date(task.scheduled_date)
           : new Date(),
         notes: task.notes || '',
-        taskTodos: task.taskTodos || [],
+        taskTodos: task.task_list_item || [],
         newAttachments: [],
         attachmentsToRemove: [],
         type: task.type || 'Cleaning',
@@ -275,11 +291,11 @@ export function TaskDetailsSheet({
           if (payload.new.user_id !== currentUserId) {
             console.log('Refreshing router...');
             // --- THE FIX: Instantly inject the new comment into the UI state ---
-            setBaseActivities((prev: any[]) => {
+            setBaseActivities((prev: TaskActivity[]) => {
               // Prevent duplicates just in case
               if (prev.some((activity) => activity.id === payload.new.id))
                 return prev;
-              return [...prev, payload.new];
+              return [...prev, payload.new as TaskActivity];
             });
             router.refresh();
           }
@@ -295,6 +311,7 @@ export function TaskDetailsSheet({
         },
         (payload) => {
           // Refresh if the team member updates the status to completed
+          console.log('Task updated: ', payload);
           router.refresh();
         },
       )
@@ -372,7 +389,7 @@ export function TaskDetailsSheet({
     }));
 
     const parsedStatus = taskStatus?.find(
-      (s: any) =>
+      (s: TaskStatusOption) =>
         String(s.status).toLowerCase().trim() ===
         String(data.status).toLowerCase().trim(),
     );
@@ -456,20 +473,23 @@ export function TaskDetailsSheet({
     // 3. Handle failure
     if (res?.error) {
       toast.error(res.error || 'Failed to add comment');
-      setCommentText(textToSubmit);
+      // setCommentText(textToSubmit);
       setIsSubmittingComment(false);
     } else {
       if (commentInputRef?.current) {
         commentInputRef.current.value = '';
       }
-      setBaseActivities((prev: any[]) => [...prev, res.data]);
+      setBaseActivities((prev: TaskActivity[]) => [
+        ...prev,
+        res.data as TaskActivity,
+      ]);
       setIsSubmittingComment(false);
     }
   };
 
   // DYNAMIC HEADER LOOKUPS
   const currentType = form.watch('type') || task?.type || 'Task';
-  const isCleaning = currentType === 'Cleaning' || task?.title === 'Cleaning';
+  const isCleaning = currentType === 'Cleaning' || task?.type === 'Cleaning';
   const propertyName = properties?.find(
     (p) => p.id === form.watch('property_id'),
   )?.title;
@@ -747,7 +767,6 @@ export function TaskDetailsSheet({
                                 </SelectItem>
                                 {teamMembers?.map((member) => (
                                   <SelectItem key={member.id} value={member.id}>
-                                    {member.first_name} {member.last_name}{' '}
                                     {member.name}
                                   </SelectItem>
                                 ))}
@@ -765,7 +784,7 @@ export function TaskDetailsSheet({
                         name='status'
                         render={({ field }) => {
                           const selectedStatusObj = taskStatus?.find(
-                            (s: any) =>
+                            (s: TaskStatusOption) =>
                               String(s.status).toLowerCase().trim() ===
                               String(field.value).toLowerCase().trim(),
                           );
@@ -792,20 +811,22 @@ export function TaskDetailsSheet({
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent className='border-border'>
-                                  {taskStatus?.map((status: any) => (
-                                    <SelectItem
-                                      key={status.id}
-                                      value={String(status.status).trim()}
-                                      style={
-                                        status.status_color
-                                          ? { color: status.status_color }
-                                          : {}
-                                      }>
-                                      {capitalizeFirstLetter(
-                                        status.status?.replace('_', ' '),
-                                      )}
-                                    </SelectItem>
-                                  ))}
+                                  {taskStatus?.map(
+                                    (status: TaskStatusOption) => (
+                                      <SelectItem
+                                        key={status.id}
+                                        value={String(status.status).trim()}
+                                        style={
+                                          status.status_color
+                                            ? { color: status.status_color }
+                                            : {}
+                                        }>
+                                        {capitalizeFirstLetter(
+                                          status.status?.replace('_', ' '),
+                                        )}
+                                      </SelectItem>
+                                    ),
+                                  )}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -819,12 +840,14 @@ export function TaskDetailsSheet({
                         name='priority'
                         render={({ field }) => {
                           const selectedPriorityObj = taskPriorities?.find(
-                            (p: any) => String(p.id) === String(field.value),
+                            (p: TaskPrioritiesOption) =>
+                              String(p.id) === String(field.value),
                           );
                           return (
                             <FormItem>
                               <FormLabel className='text-xs text-muted-foreground flex items-center gap-1'>
                                 <Flag className='w-3 h-3' /> Priority
+                                {selectedPriorityObj?.priority}
                               </FormLabel>
                               <Select
                                 value={field.value}
@@ -844,18 +867,22 @@ export function TaskDetailsSheet({
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent className='border-border'>
-                                  {taskPriorities?.map((priority: any) => (
-                                    <SelectItem
-                                      key={priority.id}
-                                      value={String(priority.id)}
-                                      style={
-                                        priority.priority_color
-                                          ? { color: priority.priority_color }
-                                          : {}
-                                      }>
-                                      {capitalizeFirstLetter(priority.priority)}
-                                    </SelectItem>
-                                  ))}
+                                  {taskPriorities?.map(
+                                    (priority: TaskPrioritiesOption) => (
+                                      <SelectItem
+                                        key={priority.id}
+                                        value={String(priority.id)}
+                                        style={
+                                          priority.priority_color
+                                            ? { color: priority.priority_color }
+                                            : {}
+                                        }>
+                                        {capitalizeFirstLetter(
+                                          priority.priority,
+                                        )}
+                                      </SelectItem>
+                                    ),
+                                  )}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -972,8 +999,9 @@ export function TaskDetailsSheet({
                     </h3>
                     <TaskAttachmentZone
                       existingAttachments={
-                        (task as any)?.attachments?.filter(
-                          (a: any) => !attachmentsToRemove.includes(a.id),
+                        (task as DetailedTask)?.attachments?.filter(
+                          (a: TaskAttachment) =>
+                            !attachmentsToRemove.includes(a.id),
                         ) || []
                       }
                       newFiles={newFiles}

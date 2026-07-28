@@ -1,3 +1,5 @@
+import { DetailedTask } from './taskTypes';
+
 export interface BookingEvent {
   id: string;
   property_id: string;
@@ -20,25 +22,6 @@ export interface BookingEvent {
   property_icals?: { platform: string };
   custom_check_in_time?: string | undefined; // hh:mm format
   custom_check_out_time?: string | undefined; // hh:mm format
-}
-
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  start: Date;
-  end: Date;
-  type: 'booking' | 'task'; // Discriminator
-  status?: string; // 'confirmed', 'pending', 'completed'
-  resource: {
-    propertyId: string;
-    propertyName: string;
-    platform?: string; // Optional for tasks
-    bookingUid?: string; // Booking specific
-    icalSourceId?: string; // Booking specific
-    guestName?: string; // Booking specific
-    taskType?: string; // Task specific (Cleaning, Maintenance)
-    originalData: string; // Keep full object
-  };
 }
 
 export interface ParsedIcalEvent {
@@ -77,6 +60,45 @@ export interface ConflictDetection {
   }[];
 }
 
+// 1. Create a Base Event with the shared properties
+export interface BaseCalendarEvent {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  status?: string;
+}
+
+// 2. Create the Booking-specific Event
+export interface BookingCalendarEvent extends BaseCalendarEvent {
+  type: 'booking'; // The discriminator
+  resource: {
+    propertyId: string;
+    propertyName: string;
+    platform?: string;
+    bookingUid?: string;
+    icalSourceId?: string;
+    guestName?: string;
+    // Store the raw booking data here!
+    originalData: BookingEvent & { properties?: { title: string } };
+  };
+}
+
+// 3. Create the Task-specific Event
+export interface TaskCalendarEvent extends BaseCalendarEvent {
+  type: 'task'; // The discriminator
+  resource: {
+    propertyId: string;
+    propertyName: string;
+    taskType?: string;
+    // THIS IS THE MAGIC LINK: It expects our perfect DetailedTask!
+    originalData: DetailedTask;
+  };
+}
+
+// 4. Combine them into the CalendarEvent type
+export type CalendarEvent = BookingCalendarEvent | TaskCalendarEvent;
+
 export type CalendarData =
   | {
       events?: CalendarEvent[];
@@ -94,4 +116,5 @@ export interface TableBooking extends BookingEvent {
     title: string;
     location?: string;
   };
+  tasks?: DetailedTask[];
 }
