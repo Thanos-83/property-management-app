@@ -40,6 +40,35 @@ export const fetchBookingsAction = async () => {
     return [];
   }
 };
+
+// Fetch bookings by Prorty ID
+export async function getBookingsByPropertyAction(propertyId: string) {
+  try {
+    const supabase = await createClient();
+
+    // Get today's date in ISO format to filter out past bookings
+    const today = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('id, guest_name, start_date, end_date')
+      .eq('property_id', propertyId)
+      .gte('end_date', today) // Only grab active or future stays
+      .order('start_date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching bookings for property:', error);
+      return { data: null, error: error.message };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Exception fetching bookings:', error);
+    return { data: null, error: 'Internal Server Error' };
+  }
+}
+
+// Update Booking action
 export const updateBookingAction = async (
   data: Partial<BookingEvent> & { id: string },
 ) => {
@@ -66,6 +95,7 @@ export const updateBookingAction = async (
   }
 };
 
+// Delete Booking action
 export const deleteBookingAction = async (bookingId: string) => {
   try {
     const supabase = await createClient();

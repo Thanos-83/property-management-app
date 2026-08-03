@@ -1,5 +1,5 @@
-import AddTaskModal from '@/components/tasks/AddTaskModal';
 import TasksTable from '@/components/tasks/TasksTable';
+import { CreateTaskButton } from '@/components/tasks/CreateTaskButton'; // NEW IMPORT
 import {
   fetchTasksAction,
   fetchTaskPrioritiesAction,
@@ -9,8 +9,15 @@ import { getPropertiesDataAction } from '@/lib/actions/propertiesActions';
 import { getTaskMembersAction } from '@/lib/actions/taskMemberActions';
 import { createClient } from '@/lib/utils/supabase/server';
 import { CurrentUserDisplayInfo } from '@/types/taskTypes';
+import { TaskTimeframeFilter } from '@/components/tasks/TaskTimeframeFilter';
 
-async function TasksPage() {
+type PageProps = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+async function TasksPage({ searchParams }: PageProps) {
+  const resolveParams = await searchParams;
+
   // 1. Fetch the current authenticated user
   const supabase = await createClient();
   const {
@@ -23,7 +30,19 @@ async function TasksPage() {
     avatar: user?.user_metadata?.avatar_url,
   };
 
-  // 2. Fetch tasks and auxiliary data for AddTaskModal in parallel
+  // 2. Validate the timeframe parameter to ensure it is one of our allowed literal types
+  const rowTimeframe = resolveParams?.timeframe;
+  const timeframeString = Array.isArray(rowTimeframe)
+    ? rowTimeframe[0]
+    : rowTimeframe;
+
+  const validTimeframes = ['upcoming', 'past', 'all'];
+  const timeframeParam = timeframeString || 'upcoming';
+  const timeframe = validTimeframes.includes(timeframeParam)
+    ? (timeframeParam as 'upcoming' | 'past' | 'all')
+    : 'upcoming';
+
+  // 3. Fetch tasks and auxiliary data in parallel
   const [
     tasksResult,
     propertiesResult,
@@ -31,7 +50,7 @@ async function TasksPage() {
     prioritiesResult,
     statusesResult,
   ] = await Promise.all([
-    fetchTasksAction(),
+    fetchTasksAction(timeframe),
     getPropertiesDataAction(),
     getTaskMembersAction(),
     fetchTaskPrioritiesAction(),
@@ -66,12 +85,20 @@ async function TasksPage() {
     <div className='group flex-1 overflow-y-auto p-4'>
       <div className='flex items-center justify-between'>
         <h1 className='text-2xl font-bold mb-4'>Tasks</h1>
-        <AddTaskModal
-          properties={properties}
-          members={members}
-          priorities={priorities}
-        />
+        <div className='flex items-center gap-4'>
+          <TaskTimeframeFilter />
+
+          <CreateTaskButton
+            properties={properties}
+            members={members}
+            priorities={priorities}
+            statuses={statuses}
+            currentUserId={user?.id || ''}
+            currentUserInfo={currentUserInfo}
+          />
+        </div>
       </div>
+
       <div className='mt-6'>
         <TasksTable
           tableTasks={tasks}
@@ -83,6 +110,7 @@ async function TasksPage() {
           currentUserInfo={currentUserInfo}
         />
       </div>
+
       {!Array.isArray(tasksResult) && tasksResult.error && (
         <div className='mt-4 p-4 bg-red-100 text-red-800 rounded-md'>
           Error loading tasks: {tasksResult.error}

@@ -24,7 +24,6 @@ import {
   Plus,
 } from 'lucide-react';
 import { Button } from '../ui/button';
-// import AddTaskModal from "../tasks/AddTaskModal";
 
 // --- HELPER 1: Get Icon ---
 const getTaskIcon = (type: string) => {
@@ -102,7 +101,7 @@ const calculateBadgeProps = (tasks: DetailedTask[]) => {
       isImportant = true;
     }
 
-    // � Yellow: Normal Priority AND Due <= 2 Days
+    // 🟡 Yellow: Normal Priority AND Due <= 2 Days
     if (!isHighPriority && isDueSoon) {
       isWarning = true;
     }
@@ -194,9 +193,9 @@ interface TaskStatusCellProps {
 
 export function TaskStatusCell({
   tasks,
-  // bookingId,
+  bookingId,
   bookingStatus,
-  // propertyId,
+  propertyId,
   // guestName,
   // propertyTitle,
   properties,
@@ -210,7 +209,6 @@ export function TaskStatusCell({
   const [taskMode, setTaskMode] = useState<'create' | 'edit'>('create');
   const [selectedTask, setSelectedTask] = useState<TableTask | null>(null);
 
-  // console.log('Tasks in TaskStatusCell inside Bookings Table:', tasks);
   // --- SCENARIO 0: Booking is Cancelled (No tasks needed) ---
   if (bookingStatus === 'cancelled') {
     return (
@@ -251,7 +249,6 @@ export function TaskStatusCell({
             </div>
 
             <div className='max-h-[300px] overflow-y-auto'>
-              {/* ... (task list rendering same as before) */}
               {tasks && tasks.length > 0 ? (
                 tasks.map((task) => (
                   <button
@@ -362,6 +359,7 @@ export function TaskStatusCell({
                   setTaskMode('create');
                   setPopoverOpen(false);
                   setModalOpen(true);
+                  setSelectedTask(null); // Ensure no old task data lingers when opening create mode
                 }}>
                 <Plus className='h-3.5 w-3.5 mr-1.5 opacity-60' />
                 Create Task
@@ -371,18 +369,6 @@ export function TaskStatusCell({
         </PopoverContent>
       </Popover>
 
-      {/* <AddTaskModal
-        bookingId={bookingId}
-        propertyId={propertyId}
-        guestName={guestName}
-        propertyTitle={propertyTitle}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        hideTrigger={true}
-        properties={properties}
-        members={members}
-        priorities={priorities}
-      /> */}
       <TaskDetailsSheet
         isOpen={modalOpen}
         onOpenChange={setModalOpen}
@@ -394,6 +380,8 @@ export function TaskStatusCell({
         taskPriorities={priorities}
         currentUserId={currentUserId}
         currentDate={new Date()}
+        bookingId={bookingId} // <-- PASSED DOWN
+        propertyId={propertyId} // <-- PASSED DOWN
       />
     </>
   );

@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm, UseFormReturn, SubmitHandler } from 'react-hook-form';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-// import { z } from 'zod';
 import {
   Sheet,
   SheetContent,
@@ -28,6 +27,7 @@ import {
   AlertTriangle,
   FileText,
   Home,
+  Plus, // <-- NEW: Added Plus icon
 } from 'lucide-react';
 import { TableBooking } from '@/types/bookingTypes';
 import {
@@ -58,17 +58,26 @@ import {
   updateBookingAction,
 } from '@/lib/actions/bookingActions';
 import { useRouter } from 'next/navigation';
-import { bookingSchema, BookingSchemaType } from '@/lib/schemas/booking';
+import { BookingFormInput, bookingSchema } from '@/lib/schemas/booking';
 import { toUTC } from '@/lib/utils/calendarUtils';
 import { DeleteBookingAlert } from './DeleteBookingAlert';
 import Image from 'next/image';
+
+// --- NEW IMPORTS FOR TASK INTEGRATION ---
+import { TaskPriority, TaskStatusOption } from '@/types/taskTypes';
+import { TaskDetailsSheet } from '../calendar/TaskDetailsSheet'; // Adjust path if needed
+import { Property } from '@/types/propertyTypes';
 
 interface BookingDetailsSheetProps {
   booking: TableBooking | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  properties: any[];
-  isConflicting?: boolean; // Tells the sheet if it should show the warning banner
+  properties: Property[];
+  isConflicting?: boolean;
+  members: { id: string; name: string }[];
+  priorities: TaskPriority[];
+  taskStatus: TaskStatusOption[];
+  currentUserId: string;
 }
 
 // Helper for Semantic Status Badge Styling
@@ -91,9 +100,12 @@ export function BookingDetailsSheet({
   onOpenChange,
   properties,
   isConflicting = false,
+  members,
+  priorities,
+  taskStatus,
+  currentUserId,
 }: BookingDetailsSheetProps) {
   const router = useRouter();
-  // console.log('Properties in details sheet: ', properties);
   const [logistics, setLogistics] = useState({
     start_date: booking?.start_date as Date | undefined,
     end_date: booking?.end_date as Date | undefined,
@@ -104,24 +116,29 @@ export function BookingDetailsSheet({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const form = useForm<BookingSchemaType>({
-    resolver: zodResolver(bookingSchema) as any,
+  // --- NEW: State to control the nested Task Sheet ---
+  const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false);
+
+  const form = useForm<BookingFormInput>({
+    resolver: zodResolver(bookingSchema),
     defaultValues: {
-      id: '' as string,
-      booking_uid: '' as string,
-      guest_name: '' as string,
-      guest_email: '' as string,
-      guest_phone: '' as string,
-      adults: 1 as number,
-      children: 0 as number,
-      total_payout: 0 as number,
-      booking_notes: '' as string,
-      start_date: '' as string,
-      end_date: '' as string,
-      property_id: '' as string,
-      status: '' as string,
+      id: '',
+      booking_uid: '',
+      guest_name: '',
+      guest_email: '',
+      guest_phone: '',
+      adults: 1,
+      children: 0,
+      total_payout: 0,
+      booking_notes: '',
+      start_date: '',
+      end_date: '',
+      property_id: '',
+      status: '',
+      custom_check_in_time: '',
+      custom_check_out_time: '',
     },
-  }) as unknown as UseFormReturn<BookingSchemaType>;
+  });
 
   // Load data when booking opens
   useEffect(() => {
@@ -151,9 +168,8 @@ export function BookingDetailsSheet({
     }
   }, [booking, form]);
 
-  const onSubmit: SubmitHandler<BookingSchemaType> = async (data) => {
+  const onSubmit: SubmitHandler<BookingFormInput> = async (data) => {
     if (!booking) return;
-    console.log('Form Errors: ', JSON.stringify(form.formState.errors));
 
     const result = await updateBookingAction({
       ...data,
@@ -177,29 +193,26 @@ export function BookingDetailsSheet({
     }
   };
 
-  // --- DELETE HANDLER ---
   const handleDeleteBooking = async () => {
     if (!booking) return;
 
     setIsDeleting(true);
     try {
-      const result = await deleteBookingAction(booking.id);
-      console.log('Delete result: ', result);
+      await deleteBookingAction(booking.id);
     } catch (error) {
       toast.error('Failed to delete booking', {
         description: (error as Error).message,
       });
     } finally {
       setIsDeleting(false);
-      setIsDeleteDialogOpen(false); // Close alert dialog
-      onOpenChange(false); // Close side sheet
-      router.refresh(); // Refresh data table
+      setIsDeleteDialogOpen(false);
+      onOpenChange(false);
+      router.refresh();
       toast.success('Booking deleted successfully');
     }
   };
 
   const bookingPlatformIcon = (platform?: string | null): string | null => {
-    // console.log(platform);
     switch (platform) {
       case 'Airbnb':
         return '/icons/airbnb-short.png';
@@ -217,300 +230,488 @@ export function BookingDetailsSheet({
   if (!booking) return null;
 
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className='p-0 flex flex-col w-full sm:max-w-[550px] bg-background border-l border-border'>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit, (error) =>
-              console.log('Form submission error:', error),
-            )}
-            className='flex flex-col h-full overflow-hidden'>
-            <input type='hidden' {...form.register('id')} />
-            <input type='hidden' {...form.register('booking_uid')} />
-            {/* --- STICKY HEADER --- */}
-            <div className='p-4 border-b border-border bg-white shrink-0'>
-              <SheetHeader className='text-left space-y-0'>
-                <div className='flex items-center gap-3 mb-1.5 flex-wrap'>
-                  <SheetTitle className='text-xl font-black text-foreground'>
-                    {booking.guest_name || 'Unknown Guest'}
-                  </SheetTitle>
+    <>
+      <Sheet open={isOpen} onOpenChange={onOpenChange}>
+        <SheetContent className='p-0 flex flex-col w-full sm:max-w-[550px] bg-background border-l border-border'>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className='flex flex-col h-full overflow-hidden'>
+              <input type='hidden' {...form.register('id')} />
+              <input type='hidden' {...form.register('booking_uid')} />
 
-                  {/* Badges moved next to the Guest Name */}
-                  <div className='flex items-center gap-2'>
-                    {/* <Badge variant="outline" className="text-[10px] uppercase tracking-wider text-muted-foreground border-border bg-background shadow-sm">
-                      {booking.platform || 'Direct'}
-                    </Badge> */}
-                    {(() => {
-                      const iconSrc = bookingPlatformIcon(booking.platform);
-                      return iconSrc !== null ? (
-                        <Image
-                          src={iconSrc!}
-                          alt='Platform Icon'
-                          width={20}
-                          height={20}
-                          className='w-4 h-5'
-                        />
-                      ) : (
-                        <Home className='w-5 h-5 text-muted-foreground' />
-                      );
-                    })()}
-                    <Badge
-                      className={`text-[10px] uppercase tracking-wider shadow-sm border ${getStatusStyles(logistics.status)}`}>
-                      {logistics.status || booking.status}
-                    </Badge>
-                  </div>
-                </div>
+              {/* --- STICKY HEADER --- */}
+              <div className='p-4 border-b border-border bg-white shrink-0'>
+                <SheetHeader className='text-left space-y-0'>
+                  {/* --- NEW: Added w-full and justified layout for the Add Task Button --- */}
+                  <div className='flex items-center justify-between gap-3 mb-1.5 flex-wrap w-full pr-6'>
+                    <div className='flex items-center gap-3 flex-wrap'>
+                      <SheetTitle className='text-xl font-black text-foreground'>
+                        {booking.guest_name || 'Unknown Guest'}
+                      </SheetTitle>
 
-                <SheetDescription className='text-xs font-medium text-muted-foreground'>
-                  {booking.property?.title} •{' '}
-                  {logistics.start_date
-                    ? format(logistics.start_date, 'MMM d, yyyy')
-                    : ''}{' '}
-                  -{' '}
-                  {logistics.end_date
-                    ? format(logistics.end_date, 'MMM d, yyyy')
-                    : ''}
-                </SheetDescription>
-              </SheetHeader>
-            </div>
-
-            {/* --- SCROLLABLE BODY --- */}
-            <div className='flex-1 overflow-y-auto p-4 space-y-4'>
-              {/* Conditional Conflict Banner */}
-              {isConflicting && (
-                <div className='bg-destructive/10 border border-destructive/20 rounded-md p-4 flex items-start gap-3 shadow-sm'>
-                  <AlertTriangle className='w-5 h-5 text-destructive shrink-0 mt-0.5' />
-                  <div>
-                    <h4 className='text-sm font-bold text-destructive'>
-                      Conflict Detected
-                    </h4>
-                    <p className='text-xs text-destructive/80 mt-1 font-medium leading-relaxed'>
-                      This booking overlaps with another reservation. Please
-                      change the dates, select a different property, or cancel
-                      it to resolve the issue.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* SECTION 1: LOGISTICS (Card Style) */}
-              <div className='bg-white border border-border rounded-sm p-5 shadow-sm space-y-4'>
-                <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
-                  <Building2 className='w-4 h-4 text-muted-foreground' /> Move
-                  or Reschedule
-                </h3>
-
-                <div className='grid grid-cols-2 gap-4'>
-                  <FormField
-                    control={form.control}
-                    name='start_date'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className='text-xs text-muted-foreground'>
-                          Check-in
-                        </FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant='outline'
-                              className={cn(
-                                'w-full justify-start bg-white text-left font-normal border-border',
-                                !logistics.start_date &&
-                                  'text-muted-foreground',
-                              )}>
-                              <CalendarIcon className='mr-2 h-4 w-4' />
-                              {logistics.start_date ? (
-                                format(logistics.start_date, 'dd-MM-yyyy')
-                              ) : (
-                                <span>Pick date</span>
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className='w-auto p-0 border-border'>
-                            <Calendar
-                              mode='single'
-                              defaultMonth={logistics.start_date}
-                              selected={logistics.start_date}
-                              onSelect={(date) => {
-                                setLogistics((prev) => ({
-                                  ...prev,
-                                  start_date: date,
-                                }));
-                                field.onChange(
-                                  date ? toUTC(date)?.toISOString() : '',
-                                );
-                              }}
-                              // 1. Define the rule for what dates are "in range"
-                              modifiers={{
-                                inRange: (date) => {
-                                  if (
-                                    !logistics.start_date ||
-                                    !logistics.end_date
-                                  )
-                                    return false;
-                                  return (
-                                    date > logistics.start_date &&
-                                    date < logistics.end_date
-                                  );
-                                },
-                              }}
-                              // 2. Apply Shadcn's built-in accent color to those dates
-                              modifiersClassNames={{
-                                inRange: 'bg-accent text-accent-foreground',
-                              }}
+                      <div className='flex items-center gap-2'>
+                        {(() => {
+                          const iconSrc = bookingPlatformIcon(booking.platform);
+                          return iconSrc !== null ? (
+                            <Image
+                              src={iconSrc!}
+                              alt='Platform Icon'
+                              width={20}
+                              height={20}
+                              className='w-4 h-5'
                             />
-                          </PopoverContent>
-                        </Popover>
-                      </FormItem>
-                    )}
-                  />
+                          ) : (
+                            <Home className='w-5 h-5 text-muted-foreground' />
+                          );
+                        })()}
+                        <Badge
+                          className={`text-[10px] uppercase tracking-wider shadow-sm border ${getStatusStyles(logistics.status)}`}>
+                          {logistics.status || booking.status}
+                        </Badge>
+                      </div>
+                    </div>
 
-                  <FormField
-                    control={form.control}
-                    name='end_date'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className='text-xs text-muted-foreground'>
-                          Check-out
-                        </FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant='outline'
-                              className={cn(
-                                'w-full justify-start bg-white text-left font-normal border-border',
-                                !logistics.end_date && 'text-muted-foreground',
-                              )}>
-                              <CalendarIcon className='mr-2 h-4 w-4' />
-                              {logistics.end_date ? (
-                                format(logistics.end_date, 'dd-MM-yyyy')
-                              ) : (
-                                <span>Pick date</span>
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className='w-auto p-0 border-border'>
-                            <Calendar
-                              mode='single'
-                              defaultMonth={logistics.end_date}
-                              selected={logistics.end_date}
-                              onSelect={(date) => {
-                                setLogistics((prev) => ({
-                                  ...prev,
-                                  end_date: date,
-                                }));
-                                field.onChange(date ? date.toISOString() : '');
-                              }}
-                              modifiers={{
-                                inRange: (date) => {
-                                  if (
-                                    !logistics.start_date ||
-                                    !logistics.end_date
-                                  )
-                                    return false;
-                                  return (
-                                    date > logistics.start_date &&
-                                    date < logistics.end_date
-                                  );
-                                },
-                              }}
-                              modifiersClassNames={{
-                                inRange: 'bg-accent text-accent-foreground',
-                              }}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                    {/* --- NEW: Add Task Trigger Button --- */}
+                    <Button
+                      type='button'
+                      size='sm'
+                      variant='outline'
+                      className='gap-1.5 shadow-sm h-8 font-semibold bg-background'
+                      onClick={() => setIsTaskSheetOpen(true)}>
+                      <Plus className='w-3.5 h-3.5' />
+                      Add Task
+                    </Button>
+                  </div>
 
-                <div className='grid grid-cols-2 gap-4'>
-                  <FormField
-                    control={form.control}
-                    name='property_id'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className='text-xs text-muted-foreground'>
-                          Property
-                        </FormLabel>
-                        <Select
-                          value={logistics.property_id}
-                          onValueChange={(val) => {
-                            setLogistics((prev) => ({
-                              ...prev,
-                              property_id: val,
-                            }));
-                            field.onChange(val);
-                          }}>
-                          <SelectTrigger className='w-full bg-white border-border'>
-                            <SelectValue placeholder='Select property' />
-                          </SelectTrigger>
-                          <SelectContent className='border-border'>
-                            {properties.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name='status'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className='text-xs text-muted-foreground'>
-                          Booking Status
-                        </FormLabel>
-                        <Select
-                          value={logistics.status}
-                          onValueChange={(val) => {
-                            setLogistics((prev) => ({ ...prev, status: val }));
-                            field.onChange(val);
-                          }}>
-                          <SelectTrigger className='w-full bg-white border-border'>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className='border-border'>
-                            <SelectItem value='confirmed'>Confirmed</SelectItem>
-                            <SelectItem value='pending'>Pending</SelectItem>
-                            <SelectItem
-                              value='cancelled'
-                              className='text-destructive font-medium'>
-                              Cancelled
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                  <SheetDescription className='text-xs font-medium text-muted-foreground'>
+                    {booking.property?.title} •{' '}
+                    {logistics.start_date
+                      ? format(logistics.start_date, 'MMM d, yyyy')
+                      : ''}{' '}
+                    -{' '}
+                    {logistics.end_date
+                      ? format(logistics.end_date, 'MMM d, yyyy')
+                      : ''}
+                  </SheetDescription>
+                </SheetHeader>
               </div>
 
-              {/* SECTION 2: GUEST IDENTITY (Card Style) */}
-              <div className='bg-white border border-border rounded-sm p-5 shadow-sm space-y-4'>
-                <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
-                  <User className='w-4 h-4 text-muted-foreground' /> Guest
-                  Details
-                </h3>
+              {/* --- SCROLLABLE BODY --- */}
+              <div className='flex-1 overflow-y-auto p-4 space-y-4'>
+                {/* Conditional Conflict Banner */}
+                {isConflicting && (
+                  <div className='bg-destructive/10 border border-destructive/20 rounded-md p-4 flex items-start gap-3 shadow-sm'>
+                    <AlertTriangle className='w-5 h-5 text-destructive shrink-0 mt-0.5' />
+                    <div>
+                      <h4 className='text-sm font-bold text-destructive'>
+                        Conflict Detected
+                      </h4>
+                      <p className='text-xs text-destructive/80 mt-1 font-medium leading-relaxed'>
+                        This booking overlaps with another reservation. Please
+                        change the dates, select a different property, or cancel
+                        it to resolve the issue.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-                <div className='grid gap-4'>
+                {/* SECTION 1: LOGISTICS (Card Style) */}
+                <div className='bg-white border border-border rounded-sm p-5 shadow-sm space-y-4'>
+                  <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
+                    <Building2 className='w-4 h-4 text-muted-foreground' /> Move
+                    or Reschedule
+                  </h3>
+
+                  <div className='grid grid-cols-2 gap-4'>
+                    <FormField
+                      control={form.control}
+                      name='start_date'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className='text-xs text-muted-foreground'>
+                            Check-in
+                          </FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant='outline'
+                                className={cn(
+                                  'w-full justify-start bg-white text-left font-normal border-border',
+                                  !logistics.start_date &&
+                                    'text-muted-foreground',
+                                )}>
+                                <CalendarIcon className='mr-2 h-4 w-4' />
+                                {logistics.start_date ? (
+                                  format(logistics.start_date, 'dd-MM-yyyy')
+                                ) : (
+                                  <span>Pick date</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className='w-auto p-0 border-border'>
+                              <Calendar
+                                mode='single'
+                                defaultMonth={logistics.start_date}
+                                selected={logistics.start_date}
+                                onSelect={(date) => {
+                                  setLogistics((prev) => ({
+                                    ...prev,
+                                    start_date: date,
+                                  }));
+                                  field.onChange(
+                                    date ? toUTC(date)?.toISOString() : '',
+                                  );
+                                }}
+                                modifiers={{
+                                  inRange: (date) => {
+                                    if (
+                                      !logistics.start_date ||
+                                      !logistics.end_date
+                                    )
+                                      return false;
+                                    return (
+                                      date > logistics.start_date &&
+                                      date < logistics.end_date
+                                    );
+                                  },
+                                }}
+                                modifiersClassNames={{
+                                  inRange: 'bg-accent text-accent-foreground',
+                                }}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name='end_date'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className='text-xs text-muted-foreground'>
+                            Check-out
+                          </FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant='outline'
+                                className={cn(
+                                  'w-full justify-start bg-white text-left font-normal border-border',
+                                  !logistics.end_date &&
+                                    'text-muted-foreground',
+                                )}>
+                                <CalendarIcon className='mr-2 h-4 w-4' />
+                                {logistics.end_date ? (
+                                  format(logistics.end_date, 'dd-MM-yyyy')
+                                ) : (
+                                  <span>Pick date</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className='w-auto p-0 border-border'>
+                              <Calendar
+                                mode='single'
+                                defaultMonth={logistics.end_date}
+                                selected={logistics.end_date}
+                                onSelect={(date) => {
+                                  setLogistics((prev) => ({
+                                    ...prev,
+                                    end_date: date,
+                                  }));
+                                  field.onChange(
+                                    date ? date.toISOString() : '',
+                                  );
+                                }}
+                                modifiers={{
+                                  inRange: (date) => {
+                                    if (
+                                      !logistics.start_date ||
+                                      !logistics.end_date
+                                    )
+                                      return false;
+                                    return (
+                                      date > logistics.start_date &&
+                                      date < logistics.end_date
+                                    );
+                                  },
+                                }}
+                                modifiersClassNames={{
+                                  inRange: 'bg-accent text-accent-foreground',
+                                }}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className='grid grid-cols-2 gap-4'>
+                    <FormField
+                      control={form.control}
+                      name='property_id'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className='text-xs text-muted-foreground'>
+                            Property
+                          </FormLabel>
+                          <Select
+                            value={logistics.property_id}
+                            onValueChange={(val) => {
+                              setLogistics((prev) => ({
+                                ...prev,
+                                property_id: val,
+                              }));
+                              field.onChange(val);
+                            }}>
+                            <SelectTrigger className='w-full bg-white border-border'>
+                              <SelectValue placeholder='Select property' />
+                            </SelectTrigger>
+                            <SelectContent className='border-border'>
+                              {properties.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name='status'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className='text-xs text-muted-foreground'>
+                            Booking Status
+                          </FormLabel>
+                          <Select
+                            value={logistics.status}
+                            onValueChange={(val) => {
+                              setLogistics((prev) => ({
+                                ...prev,
+                                status: val,
+                              }));
+                              field.onChange(val);
+                            }}>
+                            <SelectTrigger className='w-full bg-white border-border'>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className='border-border'>
+                              <SelectItem value='confirmed'>
+                                Confirmed
+                              </SelectItem>
+                              <SelectItem value='pending'>Pending</SelectItem>
+                              <SelectItem
+                                value='cancelled'
+                                className='text-destructive font-medium'>
+                                Cancelled
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* SECTION 2: GUEST IDENTITY (Card Style) */}
+                <div className='bg-white border border-border rounded-sm p-5 shadow-sm space-y-4'>
+                  <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
+                    <User className='w-4 h-4 text-muted-foreground' /> Guest
+                    Details
+                  </h3>
+
+                  <div className='grid gap-4'>
+                    <FormField
+                      control={form.control}
+                      name='guest_name'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className='text-xs text-muted-foreground'>
+                            Full Name
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              className='bg-white border-border'
+                              placeholder='e.g. Maria Papadopoulou'
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                      <FormField
+                        control={form.control}
+                        name='guest_email'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className='text-xs text-muted-foreground'>
+                              Email
+                            </FormLabel>
+                            <FormControl>
+                              <div className='relative'>
+                                <Mail className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
+                                <Input
+                                  className='pl-9 bg-white border-border'
+                                  placeholder='guest@example.com'
+                                  {...field}
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name='guest_phone'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className='text-xs text-muted-foreground'>
+                              Phone
+                            </FormLabel>
+                            <FormControl>
+                              <div className='relative'>
+                                <Phone className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
+                                <Input
+                                  className='pl-9 bg-white border-border'
+                                  placeholder='+30 69...'
+                                  {...field}
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 3: PAX & FINANCIALS (Combined Card to save space) */}
+                <div className='bg-white border border-border rounded-sm p-5 shadow-sm space-y-4'>
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-8'>
+                    {/* Occupancy Sub-section */}
+                    <div className='space-y-4'>
+                      <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
+                        <Users className='w-4 h-4 text-muted-foreground' />{' '}
+                        Occupancy
+                      </h3>
+                      <div className='grid grid-cols-2 gap-4'>
+                        <FormField
+                          control={form.control}
+                          name='adults'
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className='text-xs text-muted-foreground'>
+                                Adults
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  className='bg-white border-border'
+                                  type='number'
+                                  min={1}
+                                  {...field}
+                                  onChange={(e) =>
+                                    field.onChange(e.target.valueAsNumber)
+                                  }
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name='children'
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className='text-xs text-muted-foreground'>
+                                Children
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  className='bg-white border-border'
+                                  type='number'
+                                  min={0}
+                                  {...field}
+                                  onChange={(e) =>
+                                    field.onChange(e.target.valueAsNumber)
+                                  }
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Financials Sub-section */}
+                    <div className='space-y-4'>
+                      <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
+                        <CreditCard className='w-4 h-4 text-muted-foreground' />{' '}
+                        Financials
+                      </h3>
+                      <FormField
+                        control={form.control}
+                        name='total_payout'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className='text-xs text-muted-foreground'>
+                              Total Payout (Net)
+                            </FormLabel>
+                            <FormControl>
+                              <div className='relative'>
+                                <span className='absolute left-3 top-2.5 text-muted-foreground font-medium'>
+                                  €
+                                </span>
+                                <Input
+                                  className='pl-8 bg-white border-border font-medium'
+                                  type='number'
+                                  step='0.01'
+                                  placeholder='0.00'
+                                  {...field}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    field.onChange(
+                                      value === '' ? undefined : Number(value),
+                                    );
+                                  }}
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 4: NOTES (Card Style) */}
+                <div className='bg-white border border-border rounded-sm p-5 shadow-sm space-y-4'>
+                  <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
+                    <FileText className='w-4 h-4 text-muted-foreground' />{' '}
+                    Internal Notes
+                  </h3>
                   <FormField
                     control={form.control}
-                    name='guest_name'
+                    name='booking_notes'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className='text-xs text-muted-foreground'>
-                          Full Name
-                        </FormLabel>
                         <FormControl>
-                          <Input
-                            className='bg-white border-border'
-                            placeholder='e.g. Maria Papadopoulou'
+                          <Textarea
+                            placeholder='e.g. Late check-in, allergy to cats, needs crib...'
+                            className='min-h-[100px] bg-white border-border resize-none'
                             {...field}
                           />
                         </FormControl>
@@ -518,222 +719,58 @@ export function BookingDetailsSheet({
                       </FormItem>
                     )}
                   />
-
-                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                    <FormField
-                      control={form.control}
-                      name='guest_email'
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className='text-xs text-muted-foreground'>
-                            Email
-                          </FormLabel>
-                          <FormControl>
-                            <div className='relative'>
-                              <Mail className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
-                              <Input
-                                className='pl-9 bg-white border-border'
-                                placeholder='guest@example.com'
-                                {...field}
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name='guest_phone'
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className='text-xs text-muted-foreground'>
-                            Phone
-                          </FormLabel>
-                          <FormControl>
-                            <div className='relative'>
-                              <Phone className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
-                              <Input
-                                className='pl-9 bg-white border-border'
-                                placeholder='+30 69...'
-                                {...field}
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
                 </div>
               </div>
 
-              {/* SECTION 3: PAX & FINANCIALS (Combined Card to save space) */}
-              <div className='bg-white border border-border rounded-sm p-5 shadow-sm space-y-4'>
-                <div className='grid grid-cols-1 sm:grid-cols-2 gap-8'>
-                  {/* Occupancy Sub-section */}
-                  <div className='space-y-4'>
-                    <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
-                      <Users className='w-4 h-4 text-muted-foreground' />{' '}
-                      Occupancy
-                    </h3>
-                    <div className='grid grid-cols-2 gap-4'>
-                      <FormField
-                        control={form.control}
-                        name='adults'
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className='text-xs text-muted-foreground'>
-                              Adults
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                className='bg-white border-border'
-                                type='number'
-                                min={1}
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(e.target.valueAsNumber)
-                                }
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name='children'
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className='text-xs text-muted-foreground'>
-                              Children
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                className='bg-white border-border'
-                                type='number'
-                                min={0}
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(e.target.valueAsNumber)
-                                }
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Financials Sub-section */}
-                  <div className='space-y-4'>
-                    <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
-                      <CreditCard className='w-4 h-4 text-muted-foreground' />{' '}
-                      Financials
-                    </h3>
-                    <FormField
-                      control={form.control}
-                      name='total_payout'
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className='text-xs text-muted-foreground'>
-                            Total Payout (Net)
-                          </FormLabel>
-                          <FormControl>
-                            <div className='relative'>
-                              <span className='absolute left-3 top-2.5 text-muted-foreground font-medium'>
-                                €
-                              </span>
-                              <Input
-                                className='pl-8 bg-white border-border font-medium'
-                                type='number'
-                                step='0.01'
-                                placeholder='0.00'
-                                {...field}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  field.onChange(
-                                    value === '' ? undefined : Number(value),
-                                  );
-                                }}
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 4: NOTES (Card Style) */}
-              <div className='bg-white border border-border rounded-sm p-5 shadow-sm space-y-4'>
-                <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
-                  <FileText className='w-4 h-4 text-muted-foreground' />{' '}
-                  Internal Notes
-                </h3>
-                <FormField
-                  control={form.control}
-                  name='booking_notes'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Textarea
-                          placeholder='e.g. Late check-in, allergy to cats, needs crib...'
-                          className='min-h-[100px] bg-white border-border resize-none'
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              {/* --- STICKY FOOTER --- */}
+              <div className='p-4 border-t border-border bg-card shrink-0 flex items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]'>
+                <DeleteBookingAlert
+                  isOpen={isDeleteDialogOpen}
+                  onOpenChange={setIsDeleteDialogOpen}
+                  onConfirm={handleDeleteBooking}
+                  isDeleting={isDeleting}
+                  guestName={booking?.guest_name || ''}
                 />
+                <div className='flex gap-2 mr-2'>
+                  <Button
+                    variant='outline'
+                    type='button'
+                    className='bg-background border-border hover:bg-muted font-semibold w-1/2'
+                    onClick={() => onOpenChange(false)}>
+                    Discard
+                  </Button>
+                  <Button
+                    type='submit'
+                    disabled={form.formState.isSubmitting}
+                    className='font-bold shadow-sm w-1/2'>
+                    {form.formState.isSubmitting ? (
+                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                    ) : null}
+                    {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
               </div>
-            </div>
+            </form>
+          </Form>
+        </SheetContent>
+      </Sheet>
 
-            {/* --- STICKY FOOTER --- */}
-            <div className='p-4 border-t border-border bg-card shrink-0 flex items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]'>
-              {/* Delete Button (Logic to be implemented later) */}
-              {/* <Button 
-                type="button" 
-                variant="ghost" 
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive px-3 font-semibold"
-                onClick={() => handleDeleteBooking()}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </Button> */}
-              <DeleteBookingAlert
-                isOpen={isDeleteDialogOpen}
-                onOpenChange={setIsDeleteDialogOpen}
-                onConfirm={handleDeleteBooking}
-                isDeleting={isDeleting}
-                guestName={booking?.guest_name || ''}
-              />
-              <div className='flex gap-2 mr-2'>
-                <Button
-                  variant='outline'
-                  type='button'
-                  className='bg-background border-border hover:bg-muted font-semibold w-1/2'
-                  onClick={() => onOpenChange(false)}>
-                  Discard
-                </Button>
-                <Button
-                  type='submit'
-                  disabled={form.formState.isSubmitting}
-                  className='font-bold shadow-sm w-1/2'>
-                  {form.formState.isSubmitting ? (
-                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                  ) : null}
-                  {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </div>
-            </div>
-          </form>
-        </Form>
-      </SheetContent>
-    </Sheet>
+      {/* --- NEW: Nested Task Details Sheet --- */}
+      <TaskDetailsSheet
+        isOpen={isTaskSheetOpen}
+        onOpenChange={setIsTaskSheetOpen}
+        task={null} // null because we are always creating a new task from here
+        properties={properties}
+        teamMembers={members}
+        mode='create'
+        taskStatus={taskStatus}
+        taskPriorities={priorities}
+        currentUserId={currentUserId}
+        // Smart Default: set the task date to the check-out date
+        currentDate={logistics.end_date || new Date()}
+        bookingId={booking.id}
+        propertyId={booking.property_id}
+      />
+    </>
   );
 }

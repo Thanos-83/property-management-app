@@ -5,7 +5,8 @@ export const TASK_DETAILS_QUERY = `
     email,
     first_name,
     last_name,
-    phone
+    phone,
+    avatar_url
   ),
   property:properties!property_id (
     id,

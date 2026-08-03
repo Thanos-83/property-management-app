@@ -13,15 +13,25 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { BookingDetailsSheet } from './BookingDetailsSheet';
 import { TableBooking } from '@/types/bookingTypes';
+import { TaskPriority, TaskStatusOption } from '@/types/taskTypes';
+import { Property } from '@/types/propertyTypes';
 
 interface BookingActionsCellProps {
   booking: TableBooking;
-  properties: { id: string; title: string }[];
+  properties: Property[];
+  members: { id: string; name: string }[];
+  priorities: TaskPriority[];
+  taskStatus: TaskStatusOption[];
+  currentUserId: string;
 }
 
 export function BookingActionsCell({
   booking,
   properties,
+  members,
+  priorities,
+  taskStatus,
+  currentUserId,
 }: BookingActionsCellProps) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -44,7 +54,6 @@ export function BookingActionsCell({
             <Pencil className='mr-2 h-4 w-4' />
             Edit
           </DropdownMenuItem>
-          {/* Add delete or other actions here later */}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -53,6 +62,10 @@ export function BookingActionsCell({
         isOpen={isSheetOpen}
         onOpenChange={setIsSheetOpen}
         properties={properties}
+        members={members}
+        priorities={priorities}
+        taskStatus={taskStatus}
+        currentUserId={currentUserId}
       />
     </>
   );

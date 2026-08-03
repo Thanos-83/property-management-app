@@ -113,6 +113,9 @@ export default function TasksTable({
         setGlobalFilter={setGlobalFilter}
         onDeleteRows={handleDeleteRows}
         isDeleting={isDeleting}
+        properties={properties}
+        // taskStatuses={taskStatuses}
+        // taskPriorities={taskPriorities}
       />
 
       <div className='overflow-hidden rounded-sm border border-border bg-background shadow-sm'>

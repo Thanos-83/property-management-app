@@ -9,6 +9,7 @@ import {
   fetchTaskStatusDataAction,
 } from '@/lib/actions/taskActions';
 import { createClient } from '@/lib/utils/supabase/server';
+import { PropertyIcal } from '@/types/propertyTypes';
 
 export default async function BookingsPage() {
   /* Fetch auxiliary data for AddTaskModal to avoid N+1 requests */
@@ -52,7 +53,7 @@ export default async function BookingsPage() {
   const bookinsProperties = properties.map((property) => ({
     id: property.id,
     title: property.title,
-    icalUrls: property.property_icals.map((ical: any) => {
+    icalUrls: property.property_icals.map((ical: PropertyIcal) => {
       return {
         url: ical.ical_url,
         platform: ical.platform,

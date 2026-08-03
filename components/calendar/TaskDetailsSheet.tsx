@@ -41,6 +41,7 @@ import {
   CheckSquare,
   FileText,
   Flag,
+  LinkIcon,
   Loader2,
   Paperclip,
   Plus,
@@ -97,6 +98,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import TaskActivityTimeline from '../tasks/TaskActivityTimeline';
 import { Property } from '@/types/propertyTypes';
+import { getBookingsByPropertyAction } from '@/lib/actions/bookingActions';
 
 interface TeamMember {
   id: string;
@@ -116,6 +118,7 @@ interface TaskDetailsSheetProps {
   currentUserInfo?: CurrentUserDisplayInfo;
   bookingId?: string;
   propertyId?: string;
+  // guestName?: string;
   mode?: 'create' | 'edit';
 }
 
@@ -132,13 +135,14 @@ export function TaskDetailsSheet({
   currentDate,
   bookingId,
   propertyId,
+  // guestName,
   mode = 'edit',
 }: TaskDetailsSheetProps) {
   // console.log('Current user info in Task Details Sheet: ', currentUserInfo);
   // console.log('Current user id in Task Details Sheet: ', currentUserId);
-  console.log('Current team members in Task Details Sheet: ', teamMembers);
+  // console.log('Current team members in Task Details Sheet: ', teamMembers);
   // console.log('Properties in Task Details Sheet: ', properties);
-  // console.log('Task in Task Details Sheet: ', task);
+  console.log('Task in Task Details Sheet: ', task);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -156,6 +160,12 @@ export function TaskDetailsSheet({
   const [baseActivities, setBaseActivities] = useState<TaskActivity[]>([]);
 
   const isCreateMode = mode === 'create';
+
+  // --- BOOKING SELECTOR STATES ---
+  const [availableBookings, setAvailableBookings] = useState<
+    { id: string; guest_name: string; start_date: string; end_date: string }[]
+  >([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
 
   // 1. INITIALIZE THE FORM
   // We extend the local type to include 'type' just in case it's not in the base zod schema yet
@@ -175,6 +185,9 @@ export function TaskDetailsSheet({
       type: 'Cleaning', // Default type for new tasks
     },
   });
+
+  // Watch the property ID so we know when it changes
+  const selectedPropertyId = form.watch('property_id');
 
   // 2. SETUP FIELD ARRAY FOR THE CHECKLIST
   const { fields, append, remove, move } = useFieldArray({
@@ -321,6 +334,33 @@ export function TaskDetailsSheet({
       supabase.removeChannel(channel);
     };
   }, [task?.id, isOpen, currentUserId, router]);
+
+  // --- FETCH BOOKINGS WHEN PROPERTY CHANGES ---
+  useEffect(() => {
+    // Skip if we are in contextual mode (bookingId passed from parent) or no property is selected
+    if (bookingId || !selectedPropertyId) {
+      setAvailableBookings([]);
+      return;
+    }
+
+    const fetchBookings = async () => {
+      setIsLoadingBookings(true);
+
+      // Clear out the booking_id field if the user changes properties mid-creation
+      if (form.getValues('booking_id')) {
+        form.setValue('booking_id', '');
+      }
+
+      const response = await getBookingsByPropertyAction(selectedPropertyId);
+
+      if (response.data) {
+        setAvailableBookings(response.data);
+      }
+      setIsLoadingBookings(false);
+    };
+
+    fetchBookings();
+  }, [selectedPropertyId, bookingId, form]);
 
   // --- DIRTY STATE LOGIC ---
   // Calculates if the form should be savable based on standard inputs or attachment changes
@@ -566,13 +606,23 @@ export function TaskDetailsSheet({
                         : currentStatusLabel.replace('_', ' ')}
                     </Badge>
                   </div>
+                  <SheetDescription className='text-xs font-medium text-muted-foreground mt-2 flex items-center gap-2 flex-wrap'>
+                    <span className='flex items-center gap-1.5'>
+                      <Building2 className='w-3.5 h-3.5' />
+                      {propertyName ||
+                        (isCreateMode
+                          ? 'Please select a property below'
+                          : 'Unknown Property')}
+                    </span>
 
-                  <SheetDescription className='text-xs font-medium text-muted-foreground mt-2 flex items-center gap-1.5'>
-                    <Building2 className='w-3.5 h-3.5' />
-                    {propertyName ||
-                      (isCreateMode
-                        ? 'Please select a property below'
-                        : 'Unknown Property')}
+                    {/* SHOW THE BADGE IF BOOKING ID IS PRESENT */}
+                    {(bookingId || task?.booking_id) && (
+                      <span className='inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200'>
+                        <LinkIcon className='w-3 h-3' />
+                        This Task is Linked to Booking:{' '}
+                        {bookingId || task?.booking_id}
+                      </span>
+                    )}
                   </SheetDescription>
                 </SheetHeader>
               </div>
@@ -629,75 +679,140 @@ export function TaskDetailsSheet({
 
                     {/* --- NEW: CREATE MODE ONLY FIELDS --- */}
                     {isCreateMode && (
-                      <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-border mb-4'>
-                        <FormField
-                          control={form.control}
-                          name='property_id'
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className='text-xs text-muted-foreground'>
-                                Property{' '}
-                                <span className='text-destructive'>*</span>
-                              </FormLabel>
-                              <Select
-                                value={field.value}
-                                onValueChange={field.onChange}>
-                                <FormControl>
-                                  <SelectTrigger className='w-full bg-white border-border'>
-                                    <SelectValue placeholder='Select Property' />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className='border-border'>
-                                  {properties?.map((property) => (
-                                    <SelectItem
-                                      key={property.id}
-                                      value={property.id}>
-                                      {property.title}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <div
+                        className={`${
+                          !bookingId ? 'border-b border-border pb-4 mb-4' : ''
+                        }`}>
+                        <div
+                          className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${bookingId ? 'py-4' : ''}`}>
+                          <FormField
+                            control={form.control}
+                            name='property_id'
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='text-xs text-muted-foreground'>
+                                  Property{' '}
+                                  <span className='text-destructive'>*</span>
+                                </FormLabel>
+                                <Select
+                                  value={field.value}
+                                  disabled={!!bookingId}
+                                  onValueChange={field.onChange}>
+                                  <FormControl>
+                                    <SelectTrigger className='w-full bg-white border-border'>
+                                      <SelectValue placeholder='Select Property' />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className='border-border'>
+                                    {properties?.map((property) => (
+                                      <SelectItem
+                                        key={property.id}
+                                        value={property.id}>
+                                        {property.title}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                        <FormField
-                          control={form.control}
-                          name='type'
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className='text-xs text-muted-foreground'>
-                                Task Type{' '}
-                                <span className='text-destructive'>*</span>
-                              </FormLabel>
-                              <Select
-                                value={field.value}
-                                onValueChange={field.onChange}>
-                                <FormControl>
-                                  <SelectTrigger className='w-full bg-white border-border'>
-                                    <SelectValue placeholder='Select Type' />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className='border-border'>
-                                  <SelectItem value='Cleaning'>
-                                    Cleaning
-                                  </SelectItem>
-                                  <SelectItem value='Maintenance'>
-                                    Maintenance
-                                  </SelectItem>
-                                  <SelectItem value='Inspection'>
-                                    Inspection
-                                  </SelectItem>
-                                  <SelectItem value='Meet & Greet'>
-                                    Meet & Greet
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                          <FormField
+                            control={form.control}
+                            name='type'
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='text-xs text-muted-foreground'>
+                                  Task Type{' '}
+                                  <span className='text-destructive'>*</span>
+                                </FormLabel>
+                                <Select
+                                  value={field.value}
+                                  onValueChange={field.onChange}>
+                                  <FormControl>
+                                    <SelectTrigger className='w-full bg-white border-border'>
+                                      <SelectValue placeholder='Select Type' />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className='border-border'>
+                                    <SelectItem value='Cleaning'>
+                                      Cleaning
+                                    </SelectItem>
+                                    <SelectItem value='Maintenance'>
+                                      Maintenance
+                                    </SelectItem>
+                                    <SelectItem value='Inspection'>
+                                      Inspection
+                                    </SelectItem>
+                                    <SelectItem value='Meet & Greet'>
+                                      Meet & Greet
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        {/* ONLY SHOW IF NOT HARD-LOCKED BY PARENT */}
+                        {!bookingId && (
+                          <FormField
+                            control={form.control}
+                            name='booking_id'
+                            render={({ field }) => (
+                              <FormItem className='mt-4'>
+                                <FormLabel className='text-xs text-muted-foreground'>
+                                  Link to Booking (Optional)
+                                </FormLabel>
+                                <Select
+                                  disabled={
+                                    !form.watch('property_id') ||
+                                    isLoadingBookings
+                                  }
+                                  value={field.value || ''}
+                                  onValueChange={field.onChange}>
+                                  <FormControl>
+                                    <SelectTrigger className='w-full bg-white border-border'>
+                                      <SelectValue
+                                        placeholder={
+                                          !form.watch('property_id')
+                                            ? 'Select a property first'
+                                            : 'Select a booking...'
+                                        }
+                                      />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className='border-border'>
+                                    {availableBookings &&
+                                    availableBookings.length > 0 ? (
+                                      availableBookings?.map((b) => (
+                                        <SelectItem key={b.id} value={b.id}>
+                                          {b.guest_name} (
+                                          {format(
+                                            new Date(b.start_date),
+                                            'MMM d',
+                                          )}{' '}
+                                          -{' '}
+                                          {format(
+                                            new Date(b.end_date),
+                                            'MMM d',
+                                          )}
+                                          )
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <SelectItem value='empty'>
+                                        No Bookings Available
+                                      </SelectItem>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
                       </div>
                     )}
 

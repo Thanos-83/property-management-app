@@ -5,10 +5,19 @@ import { TableTask, TaskStatusOption } from '@/types/taskTypes';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { capitalizeFirstLetter } from '@/lib/heplers';
-import moment from 'moment';
+import {
+  format,
+  isToday,
+  isTomorrow,
+  isYesterday,
+  isBefore,
+  startOfToday,
+} from 'date-fns';
+import { el } from 'date-fns/locale';
 import UpdateTaskStatus from './UpdateTaskStatus';
 import { cn } from '@/lib/utils';
-import { CheckSquare, Flag, ChevronRight } from 'lucide-react';
+import { CheckSquare, Flag, ChevronRight, User, Building2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 // Custom filter function for status
 export const multiSelectFilterFn: FilterFn<TableTask> = (
@@ -51,16 +60,42 @@ export const getColumns: (
   {
     header: 'Task Type',
     accessorKey: 'type',
-    cell: ({ row }) => (
-      <div className='font-medium'>
-        {capitalizeFirstLetter(row.getValue('type'))}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const isLinkedToBooking = !!row.original.booking_id;
+      return (
+        <div className='flex flex-col items-start gap-1.5 py-1'>
+          {/* Make the main task type pop out a bit more */}
+          <span className='font-semibold text-foreground'>
+            {row.original.type}
+          </span>
+
+          {/* Context Badges */}
+          {isLinkedToBooking ? (
+            <Badge
+              variant='outline'
+              className='bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0 h-4 rounded-sm flex items-center gap-1 font-medium'>
+              <User className='w-2.5 h-2.5' />
+              Booking Task
+            </Badge>
+          ) : (
+            <Badge
+              variant='outline'
+              className='bg-slate-50 text-slate-600 border-slate-200 text-[10px] px-1.5 py-0 h-4 rounded-sm flex items-center gap-1 font-medium'>
+              <Building2 className='w-2.5 h-2.5' />
+              Property Task
+            </Badge>
+          )}
+        </div>
+      );
+    },
   },
   {
     header: 'Priority',
     accessorKey: 'priority',
     accessorFn: (row) => row.priority?.priority || 'Normal',
+    size: 100,
+    maxSize: 120,
+    minSize: 80,
     cell: ({ row }) => {
       const priority = row.getValue('priority') as string;
       return (
@@ -83,17 +118,56 @@ export const getColumns: (
   {
     header: 'Assignee Name',
     accessorKey: 'team_members',
-    accessorFn: (row) =>
-      row.team_members
-        ? `${row.team_members.first_name} ${row.team_members.last_name}`
-        : 'Unassigned',
     cell: ({ row }) => {
-      const name = row.getValue('team_members') as string;
+      const teamMember = row.original.team_members;
+      const assigneeName = teamMember
+        ? teamMember?.first_name + ' ' + teamMember?.last_name
+        : 'Unassigned';
+
+      const avatarUrl = teamMember?.avatar_url;
+      const isUnassigned =
+        !assigneeName || assigneeName.toLowerCase() === 'unassigned';
+
+      const getInitials = (name: string) => {
+        if (!name) return '?';
+        return name
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2);
+      };
+
+      // --- STATE 1: UNASSIGNED ---
+      if (isUnassigned) {
+        return (
+          <div className='flex items-center gap-2.5'>
+            <div className='flex items-center justify-center w-7 h-7 rounded-full bg-warning/10 border border-warning/20 shrink-0'>
+              <User className='w-3.5 h-3.5 text-warning' />
+            </div>
+            <span className='font-semibold text-warning'>Unassigned</span>
+          </div>
+        );
+      }
+
+      // --- STATE 2: ASSIGNED ---
       return (
-        <span
-          className={name === 'Unassigned' ? 'text-warning font-semibold' : ''}>
-          {name}
-        </span>
+        <div className='flex items-center gap-2.5'>
+          <Avatar className='w-7 h-7 border border-border shadow-sm'>
+            {/* If you store avatar URLs in the database, uncomment this: */}
+            {avatarUrl && (
+              <AvatarImage
+                className='object-cover'
+                src={avatarUrl}
+                alt={assigneeName}
+              />
+            )}
+            <AvatarFallback className='bg-primary/10 text-primary text-[10px] font-bold'>
+              {getInitials(assigneeName)}
+            </AvatarFallback>
+          </Avatar>
+          <span className='font-medium text-foreground'>{assigneeName}</span>
+        </div>
       );
     },
   },
@@ -102,8 +176,11 @@ export const getColumns: (
     accessorKey: 'property',
     accessorFn: (row) => row.property?.title || 'Unknown Property',
     filterFn: multiSelectFilterFn,
+    size: 200,
+    maxSize: 300,
+    minSize: 180,
     cell: ({ row }) => (
-      <div className='truncate max-w-[200px]'>{row.getValue('property')}</div>
+      <div className='truncate'>{row.getValue('property')}</div>
     ),
   },
 
@@ -173,11 +250,33 @@ export const getColumns: (
   {
     header: 'Scheduled Date',
     accessorKey: 'scheduled_date',
-    cell: ({ row }) => (
-      <div className='whitespace-nowrap'>
-        {moment(row.getValue('scheduled_date')).format('DD-MM-YYYY')}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const rawDate = row.original.scheduled_date;
+      if (!rawDate) return <span className='text-muted-foreground'>-</span>;
+
+      const dateObj = new Date(rawDate);
+
+      // Default standard format
+      let displayDate = format(dateObj, 'd MMMM yyyy', { locale: el });
+      let textStyle = 'text-foreground font-medium'; // Default style
+
+      // Smart Relative Logic & Color Coding
+      if (isToday(dateObj)) {
+        displayDate = 'Σήμερα';
+        textStyle = 'text-red-600 font-bold'; // Urgent
+      } else if (isTomorrow(dateObj)) {
+        displayDate = 'Αύριο';
+        textStyle = 'text-red-600 font-bold'; // Urgent
+      } else if (isYesterday(dateObj)) {
+        displayDate = 'Χθές';
+        textStyle = 'text-red-800 font-semibold'; // Overdue
+      } else if (isBefore(dateObj, startOfToday())) {
+        // Any other date in the past
+        textStyle = 'text-red-800 font-semibold'; // Overdue
+      }
+
+      return <span className={textStyle}>{displayDate}</span>;
+    },
   },
   // --- NEW: Chevron Column ---
   {

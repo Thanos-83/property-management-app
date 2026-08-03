@@ -10,11 +10,13 @@ import {
 } from '@/lib/schemas/task';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { toUTC } from '../utils/calendarUtils';
-import { format } from 'date-fns';
+import { format, startOfDay, subDays } from 'date-fns';
 import { createServiceClient } from '../utils/supabase/supabaseDB';
 import { TASK_DETAILS_QUERY } from '../constants/queries';
 
-export const fetchTasksAction = async () => {
+export const fetchTasksAction = async (
+  timeframe: 'upcoming' | 'past' | 'all' = 'upcoming',
+) => {
   try {
     const supabase = await createClient();
 
@@ -22,11 +24,27 @@ export const fetchTasksAction = async () => {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { data: tasks, error } = await supabase
+    // 1. Initialize the base query with your specific select and assigner_id filter
+    let query = supabase
       .from('tasks')
       .select(TASK_DETAILS_QUERY)
-      .eq('assigner_id', user?.id)
-      .order('scheduled_date', { ascending: true });
+      .eq('assigner_id', user?.id);
+
+    // 2. Calculate the start of yesterday (00:00:00)
+    const startOfYesterday = startOfDay(subDays(new Date(), 1)).toISOString();
+
+    // 3. Apply the conditional date filters
+    if (timeframe === 'upcoming') {
+      query = query.gte('scheduled_date', startOfYesterday);
+    } else if (timeframe === 'past') {
+      query = query.lt('scheduled_date', startOfYesterday);
+    }
+
+    // 4. Apply ordering (ascending for upcoming/all, descending for past tasks makes sense)
+    query = query.order('scheduled_date', { ascending: timeframe !== 'past' });
+
+    // 5. Execute the query
+    const { data: tasks, error } = await query;
 
     if (error) {
       console.error('Error fetching tasks:', error);
@@ -92,6 +110,9 @@ export const createTaskAction = async (taskData: any) => {
       .insert([
         {
           ...dbTaskData,
+
+          booking_id:
+            dbTaskData.booking_id === '' ? null : dbTaskData.booking_id,
           // Ensure data types are strictly correct for Supabase
           priority: dbTaskData.priority
             ? parseInt(dbTaskData.priority, 10)
@@ -280,6 +301,7 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
       .from('tasks')
       .update({
         ...taskData,
+        booking_id: taskData.booking_id === '' ? null : taskData.booking_id,
         team_member_id: newTeamMemberId,
         priority: parseInt(taskData.priority, 10),
         scheduled_date: toUTC(taskData.scheduled_date)?.toISOString(),
@@ -411,7 +433,7 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
     if (
       oldTask &&
       taskData.priority &&
-      String(oldPriorityId) !== taskData.priority
+      String(oldPriorityId || '') !== String(taskData.priority || '')
     ) {
       const { data: newTaskPriorityData } = await supabase
         .from('task_priorities')

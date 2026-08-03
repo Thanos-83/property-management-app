@@ -39,7 +39,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import { Property } from '@/types/propertyTypes';
 
 interface TaskTableFiltersProps {
   table: Table<TableTask>;
@@ -47,6 +48,7 @@ interface TaskTableFiltersProps {
   setGlobalFilter: (val: string) => void;
   onDeleteRows: (rows: Row<TableTask>[]) => Promise<void>;
   isDeleting: boolean;
+  properties: Property[];
 }
 
 export default function TaskTableFilters({
@@ -55,26 +57,44 @@ export default function TaskTableFilters({
   setGlobalFilter,
   onDeleteRows,
   isDeleting,
+  properties: allProperties,
 }: TaskTableFiltersProps) {
-  // Extract Unique Values for Status
+  // Extract Unique Values for Status from ALL rows, not just filtered ones
   const statuses = useMemo(() => {
-    const col = table.getColumn('status');
-    if (!col) return { unique: [], counts: new Map() };
-    return {
-      unique: Array.from(col.getFacetedUniqueValues().keys()).sort(),
-      counts: col.getFacetedUniqueValues(),
-    };
-  }, [table.getColumn('status')?.getFacetedUniqueValues()]);
+    const allRows = table.getCoreRowModel().rows;
+    const unique = Array.from(
+      new Set(allRows.map((r) => r.getValue('status') as string)),
+    )
+      .filter(Boolean)
+      .sort();
+    const counts =
+      table.getColumn('status')?.getFacetedUniqueValues() || new Map();
+    return { unique, counts };
+  }, [
+    table.getCoreRowModel(),
+    table.getColumn('status')?.getFacetedUniqueValues(),
+  ]);
 
-  // Extract Unique Values for Property
-  const properties = useMemo(() => {
-    const col = table.getColumn('property');
-    if (!col) return { unique: [], counts: new Map() };
-    return {
-      unique: Array.from(col.getFacetedUniqueValues().keys()).sort(),
-      counts: col.getFacetedUniqueValues(),
-    };
-  }, [table.getColumn('property')?.getFacetedUniqueValues()]);
+  // Extract Unique Values for Property from ALL rows, not just filtered ones
+  const propertiesData = useMemo(() => {
+    // const allRows = table.getCoreRowModel().rows;
+    // const unique = Array.from(
+    //   new Set(allRows.map((r) => r.getValue('property') as string)),
+    // )
+    //   .filter(Boolean)
+    //   .sort();
+
+    const unique = allProperties
+      .map((p) => p.title)
+      .filter(Boolean)
+      .sort();
+    const counts =
+      table.getColumn('property')?.getFacetedUniqueValues() || new Map();
+    return { unique, counts };
+  }, [
+    table.getCoreRowModel(),
+    table.getColumn('property')?.getFacetedUniqueValues(),
+  ]);
 
   const handleFilterChange = (
     columnId: string,
@@ -130,8 +150,8 @@ export default function TaskTableFilters({
           title='Property'
           columnId='property'
           table={table}
-          uniqueValues={properties.unique}
-          counts={properties.counts}
+          uniqueValues={propertiesData.unique}
+          counts={propertiesData.counts}
           onFilterChange={handleFilterChange}
         />
 
@@ -223,9 +243,19 @@ function FilterPopover({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button className='w-32' variant='outline'>
+        <Button className='w-auto min-w-32 border-dashed' variant='outline'>
           <FilterIcon className='-ms-1 opacity-60 mr-2' size={16} />
           {title}
+
+          {/* NEW: Filter Count Indicator */}
+          {selectedValues.length > 0 && (
+            <>
+              <span className='mx-2 h-4 w-[1px] bg-border' />
+              <span className='flex h-5 w-5 items-center justify-center rounded-sm bg-secondary text-[11px] font-medium'>
+                {selectedValues.length}
+              </span>
+            </>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-auto min-w-44 p-3' align='start'>
@@ -234,29 +264,49 @@ function FilterPopover({
             Filters
           </div>
           <div className='space-y-3'>
-            {uniqueValues.map((value: string) => (
-              <div key={value} className='flex items-center gap-2'>
-                <Checkbox
-                  id={`${columnId}-${value}`}
-                  checked={selectedValues.includes(value)}
-                  onCheckedChange={(checked: boolean) =>
-                    onFilterChange(columnId, checked, value)
-                  }
-                />
-                <Label
-                  htmlFor={`${columnId}-${value}`}
-                  className='flex grow justify-between gap-2 font-normal text-sm cursor-pointer'>
-                  {value}{' '}
-                  <span className='text-xs text-muted-foreground'>
-                    {counts.get(value)}
-                  </span>
-                </Label>
-              </div>
-            ))}
+            {uniqueValues.map((value: string) => {
+              // Ensure we fall back to 0 if the value is currently filtered out of the active view
+              const count = counts.get(value) || 0;
+
+              return (
+                <div key={value} className='flex items-center gap-2'>
+                  <Checkbox
+                    id={`${columnId}-${value}`}
+                    checked={selectedValues.includes(value)}
+                    onCheckedChange={(checked: boolean) =>
+                      onFilterChange(columnId, checked, value)
+                    }
+                  />
+                  <Label
+                    htmlFor={`${columnId}-${value}`}
+                    className='flex grow justify-between gap-2 font-normal text-sm cursor-pointer'>
+                    {value}{' '}
+                    <span className='text-xs text-muted-foreground'>
+                      {count}
+                    </span>
+                  </Label>
+                </div>
+              );
+            })}
             {uniqueValues.length === 0 && (
               <div className='text-xs text-muted-foreground'>No data</div>
             )}
           </div>
+
+          {/* NEW: Clear Filters Button */}
+          {selectedValues.length > 0 && (
+            <>
+              <div className='h-px bg-border my-2' />
+              <Button
+                variant='ghost'
+                className='w-full h-8 text-xs justify-center'
+                onClick={() =>
+                  table.getColumn(columnId)?.setFilterValue(undefined)
+                }>
+                Clear filters
+              </Button>
+            </>
+          )}
         </div>
       </PopoverContent>
     </Popover>

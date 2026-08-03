@@ -85,6 +85,7 @@ export interface DetailedTask {
     first_name: string;
     last_name: string;
     phone?: string;
+    avatar_url?: string | null;
   } | null;
 
   property?: {

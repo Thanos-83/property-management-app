@@ -282,8 +282,8 @@ export const columns: ColumnDef<TableBooking>[] = [
         taskStatus: TaskStatusOption[];
         currentUserId: string;
       };
-      console.log('Table Metadata: ', meta);
-      console.log('Row Original: ', row.original);
+      // console.log('Table Metadata: ', meta);
+      // console.log('Row Original: ', row.original);
       return (
         <TaskStatusCell
           tasks={(row.original as { tasks: DetailedTask[] })?.tasks || []}
@@ -303,14 +303,25 @@ export const columns: ColumnDef<TableBooking>[] = [
   },
   {
     id: 'actions',
-    cell: ({ row, table }) => (
-      <BookingActionsCell
-        booking={row.original}
-        properties={
-          (table.options.meta as { properties: Property[] }).properties || []
-        }
-      />
-    ),
+    cell: ({ row, table }) => {
+      const meta = table.options.meta as {
+        properties: Property[];
+        members: { id: string; name: string }[];
+        priorities: TaskPriority[];
+        taskStatus: TaskStatusOption[];
+        currentUserId: string;
+      };
+      return (
+        <BookingActionsCell
+          booking={row.original}
+          properties={meta?.properties || []}
+          members={meta?.members || []}
+          priorities={meta?.priorities || []}
+          taskStatus={meta?.taskStatus || []}
+          currentUserId={meta?.currentUserId || ''}
+        />
+      );
+    },
     size: 40,
   },
 ];

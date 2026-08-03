@@ -243,6 +243,10 @@ export default function EnhancedCalendar({
         onOpenChange={setIsBookingSheetOpen}
         properties={properties}
         isConflicting={isSelectedBookingConflicting}
+        members={taskMembersData}
+        priorities={taskPrioritiesData}
+        taskStatus={taskStatusData}
+        currentUserId={currentUserId}
       />
 
       {/* Task Details Sheet */}

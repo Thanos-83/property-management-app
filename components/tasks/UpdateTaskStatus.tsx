@@ -13,15 +13,10 @@ import {
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { updateTaskStatusAction } from '@/lib/actions/taskActions';
-import { capitalizeFirstLetter } from '@/lib/heplers'; // Assuming this exists based on previous code
+import { capitalizeFirstLetter } from '@/lib/heplers';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-
-export interface TaskStatusOption {
-  id: string;
-  status: string;
-  status_color: string;
-}
+import { TaskStatusOption } from '@/types/taskTypes';
 
 export default function UpdateTaskStatus({
   taskId,
