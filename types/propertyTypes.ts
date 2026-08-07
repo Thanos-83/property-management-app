@@ -1,3 +1,5 @@
+import { BookingEvent } from './bookingTypes';
+
 export type PropertyTypesApi = {
   id: string;
   company_id: string | null;
@@ -75,4 +77,42 @@ export interface Property {
   property_icals: PropertyIcal[];
   created_at: string;
   updated_at: string;
+}
+
+export interface DetailedProperty extends Property {
+  template_links: PropertyTemplateLinks[];
+  bookings: BookingEvent[]; // Type-safe booking array!
+  upcoming_bookings_count: number;
+}
+
+// Property Template Types
+
+export interface PropertyTaskTemplate {
+  id: string;
+  name: string;
+  task_type: string;
+}
+
+// Sync Types from the API call /api/sync
+
+export interface SyncResultItem {
+  success: boolean;
+  propertyId: string;
+  icalSourceId: string;
+  newBookings: number;
+  updatedBookings: number;
+}
+
+export interface SyncSummary {
+  totalNewBookings: number;
+  totalUpdatedBookings: number;
+  successfulSyncs: number;
+  failedSyncs: number;
+  totalSyncs: number;
+}
+
+export interface BulkSyncResponse {
+  success: boolean;
+  results: SyncResultItem[];
+  summary: SyncSummary;
 }

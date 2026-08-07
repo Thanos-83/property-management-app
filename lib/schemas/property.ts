@@ -16,13 +16,14 @@ export const managePropertySchema = z.object({
   location: z.string().min(1, 'Location is required'),
   rooms: z.number().min(1, 'Must have at least 1 room'),
   image_url: z.string().optional(),
-  
+
   // Inline iCal Form Fields (Optional because we only validate them when clicking "Add Link")
   newPlatform: z.string().optional(),
-  newIcalUrl: z.union([z.literal(''), z.string().url('Please enter a valid URL')]).optional(),
+  newIcalUrl: z
+    .union([z.literal(''), z.string().url('Please enter a valid URL')])
+    .optional(),
 });
 export type ManagePropertySchemaType = z.infer<typeof managePropertySchema>;
-
 
 // 3. FOR THE ADD ICAL DIALOG
 export const propertyIcalSchema = z.object({
@@ -35,4 +36,11 @@ export const propertyIcalSchema = z.object({
 });
 export type PropertyIcalSchemaType = z.infer<typeof propertyIcalSchema>;
 
-
+// Create a dedicated schema for updates
+export const updateIcalSchema = z.object({
+  icalId: z.string().uuid(),
+  icalUrl: z.string().url('Must be a valid URL'),
+  icalPlatform: z.string().min(1, 'Platform is required'),
+  propertyId: z.string().uuid(),
+});
+export type UpdateIcalSchemaType = z.infer<typeof updateIcalSchema>;

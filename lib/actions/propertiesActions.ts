@@ -5,6 +5,7 @@ import {
   createPropertySchema,
   CreatePropertySchemaType,
   managePropertySchema,
+  updateIcalSchema,
 } from '../schemas/property';
 import { propertyIcalSchema } from '../schemas/property';
 
@@ -24,8 +25,6 @@ export const addPropertyAction = async (
   if (userError || !user) {
     return { error: 'Unauthorized', status: 401, success: false };
   }
-
-  //   console.log('User Info: ', user);
 
   const parsedData = createPropertySchema.safeParse(propertyData);
 
@@ -67,7 +66,6 @@ export const updatePropertyAction = async (
 ) => {
   const supabase = await createClient();
 
-  console.log('Update Property Data in Server Action: ', updatePropertyData);
   // Auth: get the user from supabase session
   const {
     data: { user },
@@ -91,7 +89,7 @@ export const updatePropertyAction = async (
 
   const { title, description, location, rooms, image_url } = parsedData.data;
 
-  const { data: updatedProperty, error: updateError } = await supabase
+  const { error: updateError } = await supabase
     .from('properties')
     .update({
       title,
@@ -156,8 +154,6 @@ export const deletePropertyAction = async (id: string) => {
 
   const response = await supabase.from('properties').delete().eq('id', id);
 
-  console.log('Response deleting property: ', response);
-
   if (response.error) {
     return {
       status: response.status,
@@ -216,6 +212,29 @@ export const addPropertyIcalAction = async ({
     icalUrl: validIcalUrl,
   } = parsedData.data;
 
+  // --- NEW CHECK: Prevent Duplicate Platforms ---
+  const { data: existingIcal, error: fetchError } = await supabase
+    .from('property_icals')
+    .select('id')
+    .eq('property_id', validPropertyId)
+    .eq('platform', validPlatform)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('[addPropertyIcalAction Check Error]:', fetchError);
+    return { error: 'Failed to verify existing calendar links.', status: 500 };
+  }
+
+  if (existingIcal) {
+    // Return a 409 Conflict with a friendly, readable error message
+    return {
+      error: `A calendar link for ${validPlatform} already exists for this property. You can only have one link per platform.`,
+      status: 409,
+      data: null,
+    };
+  }
+  // ---------------------------------------------
+
   // Insert new iCal URL for the property
   const { data, error } = await supabase
     .from('property_icals')
@@ -226,18 +245,93 @@ export const addPropertyIcalAction = async ({
     })
     .select()
     .single();
-  // console.log('Response adding iCal URL: ', data);
-  // console.log('Error adding iCal URL: ', error);
+
   if (error) {
-    console.log('Error adding iCal URL: ', error);
+    console.error('Error adding iCal URL: ', error);
     return { error: error.message, status: 500, data: null };
   }
 
   // Revalidate the listings page to update UI
-  // revalidatePath('/dashboard/listings');
   revalidateTag('properties');
 
   return { ical: data, status: 201, error: null };
+};
+
+// Update iCal URL Action
+export const updatePropertyIcalAction = async (payload: {
+  icalId: string;
+  icalUrl: string | undefined;
+  icalPlatform: string | undefined;
+  propertyId: string;
+}) => {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { error: 'Unauthorized', status: 401 };
+  }
+
+  const parsedData = updateIcalSchema.safeParse(payload);
+
+  if (!parsedData.success) {
+    return {
+      error: 'Invalid data',
+      issues: parsedData.error.format(),
+      status: 400,
+    };
+  }
+
+  const { icalId, icalUrl, icalPlatform, propertyId } = parsedData.data;
+
+  // Prevent setting the platform to one that already exists (excluding the current one)
+  const { data: existingIcal, error: fetchError } = await supabase
+    .from('property_icals')
+    .select('id')
+    .eq('property_id', propertyId)
+    .eq('platform', icalPlatform)
+    .neq('id', icalId) // Ensure we don't conflict with ourselves
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('[updatePropertyIcalAction Check Error]:', fetchError);
+    return { error: 'Failed to verify existing calendar links.', status: 500 };
+  }
+
+  if (existingIcal) {
+    return {
+      error: `A calendar link for ${icalPlatform} already exists for this property.`,
+      status: 409,
+      data: null,
+    };
+  }
+
+  // Update iCal URL
+  const { data, error } = await supabase
+    .from('property_icals')
+    .update({
+      ical_url: icalUrl,
+      platform: icalPlatform,
+      sync_status: 'pending',
+      last_synced_at: null,
+      last_error_message: null,
+      updated_at: new Date().toISOString(), // Good practice to force timestamp update
+    })
+    .eq('id', icalId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating iCal URL: ', error);
+    return { error: error.message, status: 500, data: null };
+  }
+
+  revalidateTag('properties');
+
+  return { ical: data, status: 200, error: null };
 };
 
 export const deletePropertyIcalAction = async (icalId: string) => {
@@ -247,8 +341,6 @@ export const deletePropertyIcalAction = async (icalId: string) => {
     .from('property_icals')
     .delete()
     .eq('id', icalId);
-
-  console.log('Supabase response:', response);
 
   if (response.error) {
     const errorResult = {
@@ -266,23 +358,17 @@ export const deletePropertyIcalAction = async (icalId: string) => {
   };
   revalidateTag('properties');
 
-  console.log('Returning success result:', successResult);
   return successResult;
 };
 
 // This is an Example of how to call API Route with forwarding cookies from a Server Action
 export const fetchPropertyData = async () => {
-  // console.log('Iam in the Server Action!!');
-
   const supabase = await createClient();
 
   const {
     data: { user },
     // error: userError,
   } = await supabase.auth.getUser();
-
-  // console.log('User INFO from Server Action: ', user);
-  // console.log('User ERROR from Server Action: ', userError);
 
   // Test API call from server action with proper cookie forwarding
   const { cookies } = await import('next/headers');
@@ -291,8 +377,6 @@ export const fetchPropertyData = async () => {
     .getAll()
     .map((cookie) => `${cookie.name}=${cookie.value}`)
     .join('; ');
-
-  // console.log('Making API call from server action with cookies...');
 
   const response = await fetch(`http://localhost:3000/api/properties`, {
     headers: {
@@ -304,7 +388,6 @@ export const fetchPropertyData = async () => {
   });
 
   const data = await response.json();
-  // console.log('API Response from server action:', data);
 
   return { user, apiData: data };
 };

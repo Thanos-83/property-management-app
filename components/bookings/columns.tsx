@@ -282,8 +282,7 @@ export const columns: ColumnDef<TableBooking>[] = [
         taskStatus: TaskStatusOption[];
         currentUserId: string;
       };
-      // console.log('Table Metadata: ', meta);
-      // console.log('Row Original: ', row.original);
+
       return (
         <TaskStatusCell
           tasks={(row.original as { tasks: DetailedTask[] })?.tasks || []}

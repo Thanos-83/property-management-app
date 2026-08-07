@@ -128,8 +128,6 @@ export const createTaskAction = async (taskData: any) => {
       .select()
       .single();
 
-    // console.log('Data from adding task: ', data);
-
     if (error) {
       console.error('Error adding task:', error);
       return { error: error.message, status: 500 };
@@ -223,8 +221,6 @@ export const updateTaskStatusAction = async (
 ) => {
   try {
     const supabase = await createClient();
-    console.log('Task id server: ', taskId);
-    console.log('Task status server: ', status);
 
     const { data, error } = await supabase
       .from('tasks')
@@ -236,8 +232,6 @@ export const updateTaskStatusAction = async (
       console.error('Error updating task status:', error);
       return { error: error.message, status: 500, data: null };
     }
-
-    console.log('Data updating status: ', error);
 
     revalidateTag('tasks');
     return { data, status: 200, error: null };
@@ -253,7 +247,6 @@ export const updateTaskAction = async (taskData: TaskDetailsSchemaType) => {
     return { error: parsed.error, status: 400 };
   }
 
-  console.log('Task data server: ', parsed.data);
   try {
     const {
       taskTodos,
@@ -567,7 +560,6 @@ export const fetchTaskPrioritiesAction = async () => {
       .select('*')
       .order('id', { ascending: true });
 
-    // console.log('Task priorities server: ', taskPriorities);
     if (error) {
       console.error('Error fetching tasks priorities:', error);
       return { error: error.message, status: 500, data: null };
@@ -593,7 +585,6 @@ export const fetchTaskTypesAction = async () => {
       .select('id, name')
       .eq('is_active', true);
 
-    // console.log('Task types server: ', taskTypes);
     if (error) {
       console.error('Error fetching tasks types:', error);
       return { error: error.message, status: 500, data: null };

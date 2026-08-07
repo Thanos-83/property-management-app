@@ -1,9 +1,9 @@
 import { AddPropertyDialog } from '@/components/properties/AddPropertyModal';
-import { PropertyTypesApi } from '@/types/propertyTypes';
 import { cookies } from 'next/headers';
 import { protocol, rootDomain } from '@/lib/utils';
 import ListingsClient from '@/components/properties/ListingsClient';
 import { createClient } from '@/lib/utils/supabase/server';
+import { PropertyTaskTemplate } from '@/types/propertyTypes';
 
 export default async function DashboardListingsPage() {
   // Test API call with proper cookie forwarding from server component
@@ -18,7 +18,6 @@ export default async function DashboardListingsPage() {
   }
 
   const baseUrl = `${protocol}://app.${rootDomain}`;
-  console.log('Base URL:', baseUrl);
   const response = await fetch(`${baseUrl}/api/properties/`, {
     headers: {
       Cookie: cookieHeader,
@@ -31,13 +30,13 @@ export default async function DashboardListingsPage() {
 
   const { properties } = await response.json();
 
-  console.log('Properties: ', properties);
-
   // NEW: Fetch the user's active task templates
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  let templates: any[] = [];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let templates: PropertyTaskTemplate[] = [];
   if (user) {
     const { data } = await supabase
       .from('task_templates')
@@ -45,6 +44,7 @@ export default async function DashboardListingsPage() {
       .eq('host_id', user.id)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
+
     templates = data || [];
   }
   return (
@@ -52,7 +52,9 @@ export default async function DashboardListingsPage() {
       {/* --- HEADER --- */}
       <div className='bg-white border-b border-border shadow-sm'>
         <div className='p-6 max-w-[1600px] mx-auto flex items-center justify-between'>
-          <h1 className='text-2xl font-bold tracking-tight text-foreground'>Property Portfolio</h1>
+          <h1 className='text-2xl font-bold tracking-tight text-foreground'>
+            Property Portfolio
+          </h1>
           <div className='space-x-6'>
             <AddPropertyDialog />
           </div>
@@ -61,7 +63,10 @@ export default async function DashboardListingsPage() {
 
       {/* --- MAIN CONTENT (GRID) --- */}
       <div className='p-6 max-w-[1600px] mx-auto pb-24'>
-        <ListingsClient initialProperties={properties || []} availableTemplates={templates} />
+        <ListingsClient
+          initialProperties={properties || []}
+          availableTemplates={templates}
+        />
       </div>
     </div>
   );

@@ -14,15 +14,16 @@ export async function refreshAurinkoToken(accountId: string) {
     .single();
 
   if (error || !account || !account.refresh_token) {
-    console.error('❌ Cannot refresh token: Missing refresh_token in DB', error);
+    console.error(
+      '❌ Cannot refresh token: Missing refresh_token in DB',
+      error,
+    );
     throw new Error('Missing refresh_token');
   }
 
-  console.log(`🔄 Refreshing token for Aurinko Account ${account.aurinko_account_id}...`);
-
   try {
     const authString = Buffer.from(
-      `${process.env.AURINKO_CLIENT_ID}:${process.env.AURINKO_CLIENT_SECRET}`
+      `${process.env.AURINKO_CLIENT_ID}:${process.env.AURINKO_CLIENT_SECRET}`,
     ).toString('base64');
 
     // 2. Call Aurinko Token Endpoint
@@ -39,9 +40,9 @@ export async function refreshAurinkoToken(accountId: string) {
     });
 
     if (!response.ok) {
-        const errText = await response.text();
-        console.error('❌ Aurinko Refresh Failed:', errText);
-        throw new Error(`Aurinko Refresh Failed: ${response.statusText}`);
+      const errText = await response.text();
+      console.error('❌ Aurinko Refresh Failed:', errText);
+      throw new Error(`Aurinko Refresh Failed: ${response.statusText}`);
     }
 
     const tokenData = await response.json();
@@ -60,9 +61,7 @@ export async function refreshAurinkoToken(accountId: string) {
       throw new Error('DB Update Failed');
     }
 
-    console.log('✅ Token refreshed and saved successfully.');
     return tokenData.accessToken;
-
   } catch (error) {
     console.error('Refresh Logic Error:', error);
     throw error;

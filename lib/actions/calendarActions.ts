@@ -171,10 +171,8 @@ export const fetchCalendarDataFilterOptionsAction = async () => {
 
   const { data: filterOptions, error: filterOptionsError } = await query;
 
-  // console.log('filterOptions Data: ', filterOptions);
   if (filterOptionsError) {
     console.log('Fetch filter options Error: ', filterOptionsError);
   }
-  // console.log('filterOptions: ', propertyData);
   return filterOptions ?? [];
 };

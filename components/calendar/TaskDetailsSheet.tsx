@@ -138,11 +138,6 @@ export function TaskDetailsSheet({
   // guestName,
   mode = 'edit',
 }: TaskDetailsSheetProps) {
-  // console.log('Current user info in Task Details Sheet: ', currentUserInfo);
-  // console.log('Current user id in Task Details Sheet: ', currentUserId);
-  // console.log('Current team members in Task Details Sheet: ', teamMembers);
-  // console.log('Properties in Task Details Sheet: ', properties);
-  console.log('Task in Task Details Sheet: ', task);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -299,10 +294,7 @@ export function TaskDetailsSheet({
         },
         (payload) => {
           // Only refresh if someone ELSE added the comment
-          console.log('New comment added: ', payload);
-          console.log('Current user ID: ', currentUserId);
           if (payload.new.user_id !== currentUserId) {
-            console.log('Refreshing router...');
             // --- THE FIX: Instantly inject the new comment into the UI state ---
             setBaseActivities((prev: TaskActivity[]) => {
               // Prevent duplicates just in case
@@ -324,8 +316,9 @@ export function TaskDetailsSheet({
         },
         (payload) => {
           // Refresh if the team member updates the status to completed
-          console.log('Task updated: ', payload);
-          router.refresh();
+          if (payload.new.status === 'completed') {
+            router.refresh();
+          }
         },
       )
       .subscribe();
@@ -449,10 +442,8 @@ export function TaskDetailsSheet({
 
     let result;
     if (isCreateMode) {
-      console.log('Creating task with payload: ', payload);
       result = await createTaskAction(payload);
     } else {
-      console.log('Updating task with payload: ', payload);
       result = await updateTaskAction(payload);
     }
 
@@ -496,8 +487,6 @@ export function TaskDetailsSheet({
       console.log('Error deleting task: ', error);
       toast.error('Failed to delete task');
     } finally {
-      // 6. Only turn off the spinner. The close actions are handled in the success block.
-      // If it failed, the modal stays open so they can see the error toast.
       setIsDeleting(false);
     }
   };

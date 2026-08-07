@@ -16,16 +16,6 @@ export async function getAccessToken(): Promise<string | null> {
 
     const accessToken = session.data.session.access_token;
 
-    // Log token info for debugging (first 50 chars only)
-    console.log(
-      'Access token retrieved:',
-      accessToken.substring(0, 50) + '...'
-    );
-    console.log(
-      'Token expires at:',
-      new Date(session.data.session.expires_at! * 1000).toISOString()
-    );
-
     return accessToken;
   } catch (error) {
     console.error('Error getting access token:', error);

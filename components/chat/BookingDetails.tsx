@@ -143,7 +143,6 @@ export default function BookingDetails({ booking }: ChatBookingDetailsProps) {
 
   const onSubmit = async (data: BookingFormInput) => {
     if (!booking) return;
-    console.log('Saving from chat side-panel:', data);
     const bookingData = {
       ...data,
       id: booking.id,

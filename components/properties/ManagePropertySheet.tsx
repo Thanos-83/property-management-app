@@ -20,6 +20,8 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
+  Edit2,
+  SaveIcon,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -50,7 +52,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PropertyTypesApi } from '@/types/propertyTypes';
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
+
+// 1. IMPORT EXACT TYPES
+import {
+  DetailedProperty,
+  PropertyIcal,
+  PropertyTemplateLinks,
+  PropertyTaskTemplate,
+  BulkSyncResponse,
+} from '@/types/propertyTypes';
+
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -65,14 +84,13 @@ import {
   managePropertySchema,
   ManagePropertySchemaType,
 } from '@/lib/schemas/property';
-// import DeleteIcalDialog from './DeleteIcalAlertDialog';
-// import DeleteIcalDialogAlert from './DeleteIcalAlertDialog';
 import {
   addPropertyIcalAction,
   deletePropertyAction,
   deletePropertyIcalAction,
   togglePropertyTemplateAction,
   updatePropertyAction,
+  updatePropertyIcalAction,
   updatePropertyTemplateOffsetAction,
 } from '@/lib/actions/propertiesActions';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -82,12 +100,13 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import Link from 'next/link';
 import DeleteIcalAlertDialog from './DeleteIcalAlertDialog';
+import SyncAllButton from './SyncAllButton';
 
 const platformOptions = [
-  { value: 'Airbnb', label: 'Airbnb', icon: '/icons/airbnb.svg' },
-  { value: 'Booking', label: 'Booking.com', icon: '/icons/booking.svg' },
-  { value: 'Vrbo', label: 'Vrbo', icon: '/icons/vrbo.svg' },
-  { value: 'Expedia', label: 'Expedia', icon: '/icons/expedia.svg' },
+  { value: 'Airbnb', label: 'Airbnb', icon: '/icons/airbnb-short.png' },
+  { value: 'Booking', label: 'Booking.com', icon: '/icons/booking-short.png' },
+  { value: 'Vrbo', label: 'Vrbo', icon: '/icons/vrbo-short.png' },
+  { value: 'Expedia', label: 'Expedia', icon: '/icons/expedia-short.png' },
 ];
 
 const platformIcons: Record<string, string> = {
@@ -151,11 +170,12 @@ function calculateMinutes(state: HumanReadableOffset): number {
   return state.direction === 'before' ? -minutes : minutes;
 }
 
+// 2. UPDATE PROPS TO USE STRICT TYPES
 interface ManagePropertySheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  property: PropertyTypesApi | null;
-  availableTemplates: any[];
+  property: DetailedProperty | null;
+  availableTemplates: PropertyTaskTemplate[];
 }
 
 // ============================================================================
@@ -168,8 +188,7 @@ export default function ManagePropertySheet({
   availableTemplates,
 }: ManagePropertySheetProps) {
   const router = useRouter();
-  // console.log('Available Templates in Manage Property Sheet: ', availableTemplates);
-  // console.log('Property in Manage Property Sheet: ', property);
+
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [isAddingIcal, setIsAddingIcal] = useState(false);
   const [syncingIcalId, setSyncingIcalId] = useState<string | null>(null);
@@ -178,22 +197,23 @@ export default function ManagePropertySheet({
   const [isDeletingProperty, setIsDeletingProperty] = useState(false);
   const [isDeletePropertyOpen, setIsDeletePropertyOpen] = useState(false);
 
-  // --- OPTIMISTIC UI STATE FOR iCAL URLs and Template Links ---
-  const [optimisticIcals, setOptimisticIcals] = useState<any[]>([]);
-  const [optimisticTemplateLinks, setOptimisticTemplateLinks] = useState<any[]>(
-    [],
-  );
+  // 3. OPTIMISTIC UI STATE WITH STRICT TYPES
+  const [optimisticIcals, setOptimisticIcals] = useState<PropertyIcal[]>([]);
+  const [optimisticTemplateLinks, setOptimisticTemplateLinks] = useState<
+    PropertyTemplateLinks[]
+  >([]);
 
   // --- AUTOMATION SETTINGS STATES ---
   const [localOffsets, setLocalOffsets] = useState<
     Record<string, HumanReadableOffset>
   >({});
   const [isUpdatingOffset, setIsUpdatingOffset] = useState<string | null>(null);
-  const [isPendingUpdateOffset, startTransitionUpdateOffset] = useTransition();
+  // , startTransitionUpdateOffset] = useTransition();
 
   // Delete Ical states
   const [isPendingDeleteIcal, startTransitionDeleteIcal] = useTransition();
-  const [isDeleteIcalOpen, setIsDeleteIcalOpen] = useState(false);
+  // const [isDeleteIcalOpen, setIsDeleteIcalOpen] = useState(false);
+  const [deletingIcalId, setDeletingIcalId] = useState<string | null>(null);
 
   // --- COVER PHOTO STATES ---
   const [newCoverPhoto, setNewCoverPhoto] = useState<File | null>(null);
@@ -264,9 +284,7 @@ export default function ManagePropertySheet({
   const onSubmitDetails = async (data: ManagePropertySchemaType) => {
     if (!property) return;
     setIsSavingDetails(true);
-    // console.log('Data in onSubmitDetails: ', data);
-    // console.log('Property Image: ', newCoverPhoto);
-    // console.log('Property Image review URL: ', previewUrl);
+
     try {
       // Upload file to Supabase Storage
       let imageUrl = property.image_url || null;
@@ -274,13 +292,12 @@ export default function ManagePropertySheet({
         const supabase = createClient();
         const fileExt = newCoverPhoto.name.split('.').pop();
         const fileName = `${property.id}-${crypto.randomUUID()}.${fileExt}`;
-        const { data: storageData, error: storageError } =
-          await supabase.storage
-            .from('property_images')
-            .upload(fileName, newCoverPhoto, {
-              cacheControl: '3600',
-              upsert: false,
-            });
+        const { error: storageError } = await supabase.storage
+          .from('property_images')
+          .upload(fileName, newCoverPhoto, {
+            cacheControl: '3600',
+            upsert: false,
+          });
         if (storageError) {
           console.error('Error uploading image:', storageError);
           toast.error('Failed to upload image');
@@ -304,18 +321,15 @@ export default function ManagePropertySheet({
         newIcalUrl: data.newIcalUrl,
         newPlatform: data.newPlatform,
       };
-      // TODO: Replace with your actual server action
-      const response = await updatePropertyAction(
-        property.id,
-        updatePropertyPayload,
-      );
 
-      // console.log('Response updating property: ', response);
+      await updatePropertyAction(property.id, updatePropertyPayload);
+
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       toast.success('Property details updated successfully');
       router.refresh();
     } catch (error) {
+      console.error('[onSubmitDetails Error]:', error); // Added error log
       toast.error('Failed to update property details');
     } finally {
       setIsSavingDetails(false);
@@ -369,9 +383,9 @@ export default function ManagePropertySheet({
       });
       router.refresh();
     } catch (error) {
+      console.error('[handleToggleTemplate Error]:', error); // Added error log
       // Revert if API fails
       setOptimisticTemplateLinks(previousLinks);
-      setIsUpdatingOffset(null);
       toast.error('Failed to toggle automation');
     } finally {
       setIsUpdatingOffset(null);
@@ -399,13 +413,11 @@ export default function ManagePropertySheet({
     );
 
     try {
-      // TODO: Call your Server Action to update the `offset_minutes` in the DB
       await updatePropertyTemplateOffsetAction(
         property.id,
         templateId,
         finalMinutes,
       );
-      // await new Promise(resolve => setTimeout(resolve, 600)); // Simulate API
 
       toast.success('Schedule rule saved');
 
@@ -416,8 +428,8 @@ export default function ManagePropertySheet({
         return next;
       });
     } catch (error) {
+      console.error('[handleUpdateOffset Error]:', error); // Added error log
       toast.error('Failed to save schedule rule');
-      // Ideally, revert the state here if needed
     } finally {
       setIsUpdatingOffset(null);
     }
@@ -477,8 +489,96 @@ export default function ManagePropertySheet({
       // Refresh to grab true database IDs
       router.refresh();
     } catch (error) {
-      // Revert optimistic addition on failure
+      console.error('[handleAddIcal Error]:', error); // Added error log
       toast.error('Failed to add calendar link');
+    } finally {
+      setIsAddingIcal(false);
+    }
+  };
+
+  // Handle the results of the sync all action
+  const handleSyncAllComplete = (result: BulkSyncResponse) => {
+    setOptimisticIcals((prev) =>
+      prev.map((ical) => {
+        const specificResult = result.results?.find(
+          (r: { icalSourceId: string; success: boolean }) =>
+            r.icalSourceId === ical.id,
+        );
+
+        if (specificResult) {
+          return {
+            ...ical,
+            sync_status: specificResult.success ? 'success' : 'error',
+            last_synced_at: specificResult.success
+              ? new Date().toISOString()
+              : ical.last_synced_at,
+          };
+        }
+        return ical;
+      }),
+    );
+  };
+
+  // State declarations
+  const [icalToEdit, setIcalToEdit] = useState<PropertyIcal | null>(null);
+  const [editIcalUrl, setEditIcalUrl] = useState<boolean>(false);
+
+  // Edit initiator
+  const editActiveConnection = (ical: PropertyIcal) => {
+    setIcalToEdit(ical);
+    form.setValue('newIcalUrl', ical.ical_url);
+    form.setValue('newPlatform', ical.platform);
+    setEditIcalUrl(true);
+  };
+
+  // Cancel edit mode helper
+  const cancelEditConnection = () => {
+    setIcalToEdit(null);
+    setEditIcalUrl(false);
+    form.setValue('newIcalUrl', '');
+    form.setValue('newPlatform', '');
+    form.clearErrors(['newPlatform', 'newIcalUrl']);
+  };
+
+  // Update handler
+  const updateActiveConnection = async () => {
+    if (!icalToEdit || !property) return;
+
+    // 1. Validate the form before attempting the server request
+    const isPlatformValid = await form.trigger('newPlatform');
+    const isUrlValid = await form.trigger('newIcalUrl');
+    if (!isPlatformValid || !isUrlValid) return;
+
+    setIsAddingIcal(true); // Re-use the existing loading state for the button
+
+    try {
+      const icalPayload = {
+        icalId: icalToEdit.id,
+        icalUrl: form.getValues('newIcalUrl'),
+        icalPlatform: form.getValues('newPlatform'),
+        propertyId: property.id, // Pass this to check for duplicate platforms later
+      };
+
+      const response = await updatePropertyIcalAction(icalPayload);
+
+      if (response.error) {
+        toast.error(response.error);
+        return;
+      }
+
+      toast.success('Calendar link updated successfully');
+
+      // 2. Optimistically update the exact array item so the UI changes instantly
+      setOptimisticIcals((prev) =>
+        prev.map((ical) => (ical.id === icalToEdit.id ? response.ical : ical)),
+      );
+
+      // 3. Reset the form and exit edit mode
+      cancelEditConnection();
+      router.refresh();
+    } catch (error) {
+      console.error('[updateActiveConnection Error]:', error);
+      toast.error('Failed to update calendar link');
     } finally {
       setIsAddingIcal(false);
     }
@@ -489,29 +589,27 @@ export default function ManagePropertySheet({
     const previousIcals = [...optimisticIcals];
     try {
       startTransitionDeleteIcal(async () => {
-        // await new Promise((resolve) => setTimeout(resolve, 3000));
         const response = await deletePropertyIcalAction(icalId);
 
-        console.log('Client response in deleting iCal URL: ', response);
         if (!response.error) {
           toast.success('Calendar link deleted successfully');
           setOptimisticIcals((prev) =>
             prev.filter((ical) => ical.id !== icalId),
           );
-          setIsDeleteIcalOpen(false);
+          // setIsDeleteIcalOpen(false);
+          setDeletingIcalId(null);
           router.refresh();
         }
       });
     } catch (error) {
+      console.error('[handleDeleteIcal Error]: ', error); // Added error log
       // Revert optimistic deletion on failure
-      console.log('Error in deleting iCal URL: ', error);
       setOptimisticIcals(previousIcals);
       toast.error('Failed to delete calendar link');
     }
   };
 
   // Handle Sync iCal URL
-
   const handleForceSync = async (icalId: string) => {
     if (!property) return;
     setSyncingIcalId(icalId);
@@ -530,9 +628,10 @@ export default function ManagePropertySheet({
       // 1. UPDATE INDIVIDUAL STATUSES BASED ON THE RESULTS ARRAY
       setOptimisticIcals((prev) =>
         prev.map((ical) => {
-          // Find the specific sync result for this calendar link
+          // Inline Typed Object
           const specificResult = result.results?.find(
-            (r: any) => r.icalSourceId === ical.id,
+            (r: { icalSourceId: string; success: boolean }) =>
+              r.icalSourceId === ical.id,
           );
 
           if (specificResult) {
@@ -551,24 +650,21 @@ export default function ManagePropertySheet({
 
       // 2. SHOW SMART TOAST NOTIFICATIONS
       if (result.summary.failedSyncs === 0) {
-        // 100% Success
         toast.success(
           `Sync complete! ${result.summary.totalNewBookings} new, ${result.summary.totalUpdatedBookings} updated.`,
         );
       } else if (result.summary.successfulSyncs > 0) {
-        // Partial Success (e.g., 3 succeeded, 1 failed)
         toast.warning(
           `Partial sync: ${result.summary.successfulSyncs} calendars synced, ${result.summary.failedSyncs} failed.`,
         );
       } else {
-        // 100% Failure
         toast.error('Sync failed. Please check your calendar URLs.');
       }
 
       // Refresh the router to pull in any new bookings/tasks
       router.refresh();
     } catch (error) {
-      console.error('Sync failed:', error);
+      console.error('[handleForceSync Error]:', error); // Added error log
       // Fallback: If the network request completely crashes, mark the clicked one as an error
       setOptimisticIcals((prev) =>
         prev.map((ical) =>
@@ -586,18 +682,17 @@ export default function ManagePropertySheet({
     if (!property) return;
     setIsDeletingProperty(true);
     try {
-      // Delete property server action
       const result = await deletePropertyAction(property.id);
       if (result?.result === 'fail') {
         toast.error(result?.error?.message || 'Failed to delete property');
       }
-      //   await new Promise(resolve => setTimeout(resolve, 1000));
 
       toast.success('Property deleted successfully');
       setIsDeletePropertyOpen(false);
       onOpenChange(false);
       router.refresh();
     } catch (error) {
+      console.error('[handleDeleteProperty Error]:', error); // Added error log
       toast.error('Failed to delete property');
     } finally {
       setIsDeletingProperty(false);
@@ -906,11 +1001,18 @@ export default function ManagePropertySheet({
                   <div className='space-y-4'>
                     {/* EXISTING CONNECTIONS (OPTIMISTIC) */}
                     <div className='bg-white border border-border rounded-md shadow-sm overflow-hidden'>
-                      <div className='px-5 py-3 border-b border-border bg-muted/30'>
+                      <div className='flex items-center justify-between px-5 py-3 border-b border-border bg-muted/30'>
                         <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
                           <LinkIcon className='w-4 h-4 text-muted-foreground' />{' '}
                           Active Connections
                         </h3>
+                        {optimisticIcals.length > 1 && (
+                          <SyncAllButton
+                            propertyId={property.id}
+                            onSyncComplete={handleSyncAllComplete}
+                            disabled={syncingIcalId !== null}
+                          />
+                        )}
                       </div>
 
                       <div className='p-2 space-y-1'>
@@ -921,7 +1023,7 @@ export default function ManagePropertySheet({
                         ) : (
                           optimisticIcals.map((ical) => {
                             const isSyncing = syncingIcalId === ical.id;
-                            const isError = ical.sync_status === 'error';
+                            // const isError = ical.sync_status === 'error';
                             return (
                               <div
                                 key={ical.id}
@@ -959,12 +1061,37 @@ export default function ManagePropertySheet({
                                           Pending
                                         </Badge>
                                       ) : ical.sync_status === 'error' ? (
-                                        <Badge
-                                          variant='destructive'
-                                          className='text-[9px] h-4 px-1.5 gap-1 shadow-sm'>
-                                          <AlertCircle className='w-2.5 h-2.5 mr-[2px]' />{' '}
-                                          Failed
-                                        </Badge>
+                                        // <Badge
+                                        //   variant='destructive'
+                                        //   className='text-[9px] h-4 px-1.5 gap-1 shadow-sm'>
+                                        //   <AlertCircle className='w-2.5 h-2.5 mr-[2px]' />{' '}
+                                        //   {ical.last_error_message || 'Failed'}
+                                        // </Badge>
+                                        <TooltipProvider delayDuration={150}>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Badge
+                                                variant='destructive'
+                                                className='text-[9px] h-4 px-1.5 gap-0.5 shadow-sm cursor-help hover:bg-destructive/90'>
+                                                <AlertCircle className='w-2.5 h-2.5 mr-0.5' />
+                                                Failed
+                                                <Info className='w-2.5 h-2.5 ml-0.5 opacity-80' />
+                                              </Badge>
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side='top'
+                                              className='z-[200] p-3 max-w-[260px] shadow-lg border-border'>
+                                              <p className='font-bold text-xs mb-1 text-destructive flex items-center gap-1.5'>
+                                                <AlertCircle className='w-3 h-3' />{' '}
+                                                Sync Error
+                                              </p>
+                                              <p className='text-xs text-muted-foreground break-words leading-relaxed'>
+                                                {ical.last_error_message ||
+                                                  'An unknown network or formatting error occurred while attempting to read this calendar link.'}
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
                                       ) : (
                                         <Badge
                                           variant='secondary'
@@ -1013,14 +1140,27 @@ export default function ManagePropertySheet({
                                     <Copy className='w-4 h-4' />
                                   </Button>
 
+                                  <Button
+                                    type='button'
+                                    variant='ghost'
+                                    size='icon'
+                                    className='h-8 w-8 text-muted-foreground hover:text-foreground'
+                                    onClick={() => editActiveConnection(ical)}>
+                                    <Edit2 className='w-4 h-4' />
+                                  </Button>
+
                                   {/* SEPARATED DELETE ICAL COMPONENT */}
                                   <DeleteIcalAlertDialog
                                     icalId={ical.id}
                                     platform={ical.platform}
                                     onConfirm={handleDeleteIcal}
                                     isPendingDeleteIcal={isPendingDeleteIcal}
-                                    isOpen={isDeleteIcalOpen}
-                                    setIsOpen={setIsDeleteIcalOpen}
+                                    // isOpen={isDeleteIcalOpen}
+                                    // setIsOpen={setIsDeleteIcalOpen}
+                                    isOpen={deletingIcalId === ical.id}
+                                    setIsOpen={(open) =>
+                                      setDeletingIcalId(open ? ical.id : null)
+                                    }
                                   />
                                 </div>
                               </div>
@@ -1106,16 +1246,33 @@ export default function ManagePropertySheet({
                           )}
                         />
 
-                        <Button
-                          type='button'
-                          onClick={handleAddIcal}
-                          className='w-full font-bold shadow-sm'
-                          disabled={isAddingIcal}>
-                          {isAddingIcal ? (
-                            <Loader2Icon className='w-4 h-4 mr-2 animate-spin' />
-                          ) : null}
-                          Add Calendar Connection
-                        </Button>
+                        {editIcalUrl ? (
+                          <div className='flex items-center justify-between gap-x-2'>
+                            <Button
+                              variant={'outline'}
+                              type='button'
+                              onClick={cancelEditConnection}>
+                              Cancel
+                            </Button>
+                            <Button
+                              type='button'
+                              onClick={updateActiveConnection}>
+                              <SaveIcon className='w-4 h-4 mr-2' />
+                              Update Calendar Connection
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            type='button'
+                            onClick={handleAddIcal}
+                            className='w-full font-bold shadow-sm'
+                            disabled={isAddingIcal}>
+                            {isAddingIcal ? (
+                              <Loader2Icon className='w-4 h-4 mr-2 animate-spin' />
+                            ) : null}
+                            Add Calendar Connection
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1153,8 +1310,6 @@ export default function ManagePropertySheet({
                               (link) => link.template_id === template.id,
                             );
                             const isActive = currentLink?.is_active || false;
-                            // const currentOffset = currentLink?.offset_minutes || 0;
-                            // const hasDirtyOffset = localOffsets[template.id] !== undefined && localOffsets[template.id] !== currentOffset;
 
                             // Initialize UI State
                             const dbOffset = currentLink?.offset_minutes || 0;
@@ -1231,8 +1386,7 @@ export default function ManagePropertySheet({
                                           )
                                         }
                                         className='h-8 px-3 shadow-sm transition-all shrink-0'>
-                                        {isUpdatingOffset === template.id ||
-                                        isPendingUpdateOffset ? (
+                                        {isUpdatingOffset === template.id ? (
                                           <Loader2Icon className='w-3.5 h-3.5 animate-spin' />
                                         ) : (
                                           <Save className='w-3.5 h-3.5 mr-1.5' />

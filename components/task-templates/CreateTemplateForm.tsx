@@ -1,9 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useForm, useFieldArray, SubmitHandler, UseFormReturn } from 'react-hook-form';
+import {
+  useForm,
+  useFieldArray,
+  SubmitHandler,
+  UseFormReturn,
+} from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { taskTemplateSchema, TaskTemplateSchemaType } from '@/lib/schemas/task-template';
+import {
+  taskTemplateSchema,
+  TaskTemplateSchemaType,
+} from '@/lib/schemas/task-template';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -23,7 +31,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { Loader2Icon, Plus, PlusIcon, SearchIcon, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MultiSelect } from '@/components/ui/multi-select';
@@ -48,7 +62,6 @@ import { GripVertical } from 'lucide-react';
 import { Control } from 'react-hook-form';
 import { createTaskTemplateAction } from '@/lib/actions/taskTemplateActions';
 import Link from 'next/link';
-
 
 type CreateTemplateFormProps = {
   teamMembers?: { id: string; first_name: string; last_name: string }[];
@@ -87,25 +100,26 @@ const SortableItem = ({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="flex gap-2 items-center mb-2">
- 
+    <div
+      ref={setNodeRef}
+      style={style}
+      className='flex gap-2 items-center mb-2'>
       <FormField
         control={control}
         name={`checklist.${index}.description`}
         render={({ field }) => (
-          <FormItem className="flex-1">
+          <FormItem className='flex-1'>
             <FormControl>
               <InputGroup>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="!cursor-grab text-muted-foreground hover:text-foreground"
-                    {...attributes}
-                    {...listeners}
-                  >
-                    <GripVertical className="h-4 w-4" />
-                  </Button>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='sm'
+                  className='!cursor-grab text-muted-foreground hover:text-foreground'
+                  {...attributes}
+                  {...listeners}>
+                  <GripVertical className='h-4 w-4' />
+                </Button>
                 <InputGroupInput
                   placeholder={`Step ${index + 1}...`}
                   {...field}
@@ -116,15 +130,14 @@ const SortableItem = ({
                     }
                   }}
                 />
-                 <Button
-                    type="button"
-                    variant="ghost"
-                    className="p-2"
-                    size="sm"
-                    onClick={() => remove(index)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  className='p-2'
+                  size='sm'
+                  onClick={() => remove(index)}>
+                  <Trash2 className='h-4 w-4 text-destructive' />
+                </Button>
               </InputGroup>
             </FormControl>
             <FormMessage />
@@ -135,10 +148,10 @@ const SortableItem = ({
   );
 };
 
-export function CreateTemplateForm({ 
-  teamMembers = [], 
-  properties = [], 
-  priorities = [] 
+export function CreateTemplateForm({
+  teamMembers = [],
+  properties = [],
+  priorities = [],
 }: CreateTemplateFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -165,7 +178,7 @@ export function CreateTemplateForm({
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -188,62 +201,71 @@ export function CreateTemplateForm({
       })),
     };
     setIsLoading(true);
-    
+
     const response = await createTaskTemplateAction(validadedData);
 
-    console.log('Form Data:', validadedData);
-    console.log('Response:', response);
-        
-    toast.success('Template created successfully (Simulation)');
+    if (response) {
+      toast.success('Template created successfully');
+      form.reset();
+    } else {
+      toast.error('Failed to create template');
+    }
     setIsLoading(false);
-    form.reset(); 
+    // form.reset();
     // In real implementation, might redirect or reset
   };
-  
-
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-4xl mr-auto space-y-4">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className='max-w-4xl mr-auto space-y-4'>
         {/* 1. Header Information */}
         <Card className='rounded-md border-border'>
           <CardHeader>
             <CardTitle>Template Details</CardTitle>
-            <CardDescription>Basic information about this task template.</CardDescription>
+            <CardDescription>
+              Basic information about this task template.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className='space-y-4'>
             <FormField
               control={form.control}
-              name="name"
+              name='name'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Template Name</FormLabel>
                   <FormControl>
-                    <Input placeholder='e.g., "Deep Clean - Summer"' {...field} />
+                    <Input
+                      placeholder='e.g., "Deep Clean - Summer"'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <FormField
                 control={form.control}
-                name="task_type"
+                name='task_type'
                 render={({ field }) => (
-                  <FormItem >
+                  <FormItem>
                     <FormLabel>Task Type</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select type" />
+                        <SelectTrigger className='w-full'>
+                          <SelectValue placeholder='Select type' />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Cleaning">Cleaning</SelectItem>
-                        <SelectItem value="Maintenance">Maintenance</SelectItem>
-                        <SelectItem value="Inspection">Inspection</SelectItem>
-                        <SelectItem value="Meet & Greet">Meet & Greet</SelectItem>
+                        <SelectItem value='Cleaning'>Cleaning</SelectItem>
+                        <SelectItem value='Maintenance'>Maintenance</SelectItem>
+                        <SelectItem value='Inspection'>Inspection</SelectItem>
+                        <SelectItem value='Meet & Greet'>
+                          Meet & Greet
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -253,27 +275,29 @@ export function CreateTemplateForm({
 
               <FormField
                 control={form.control}
-                name="priority"
+                name='priority'
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Priority</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Define priority" />
+                        <SelectTrigger className='w-full'>
+                          <SelectValue placeholder='Define priority' />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {priorities.map((priority) => (
-                           <SelectItem key={priority.id} value={String(priority.id)}>
-                             <div className="flex items-center gap-2">
-                               <div 
-                                 className="w-3 h-3 rounded-full" 
-                                 style={{ backgroundColor: priority.color }} 
-                               />
-                               {priority.name}
-                             </div>
-                           </SelectItem>
+                          <SelectItem
+                            key={priority.id}
+                            value={String(priority.id)}>
+                            <div className='flex items-center gap-2'>
+                              <div
+                                className='w-3 h-3 rounded-full'
+                                style={{ backgroundColor: priority.color }}
+                              />
+                              {priority.name}
+                            </div>
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -285,15 +309,15 @@ export function CreateTemplateForm({
 
             <FormField
               control={form.control}
-              name="description_notes"
+              name='description_notes'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Description & Notes</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder='e.g., "Standard turnover instructions. Remember to check the balcony door."' 
-                      className="min-h-[100px]"
-                      {...field} 
+                    <Textarea
+                      placeholder='e.g., "Standard turnover instructions. Remember to check the balcony door."'
+                      className='min-h-[100px]'
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -303,36 +327,47 @@ export function CreateTemplateForm({
 
             <FormField
               control={form.control}
-              name="team_member_id"
+              name='team_member_id'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Default Assignee (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full max-w-lg">
-                          <SelectValue placeholder="Select a team member" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {teamMembers.map((member) => (
-                           <SelectItem key={member.id} value={member.id}>
-                             <div className="flex items-center gap-2">
-                               {member.first_name + ' ' + member.last_name}
-                             </div>
-                           </SelectItem>
-                        ))}
-                         {teamMembers.length === 0 && (
-                            // Fallback if no priorities loaded
-                            <>
-                              <SelectItem value="">
-                                <div> <p className="text-center"> No team members found </p> 
-                                <Link href="/team-members" className="text-center"> Add team members <PlusIcon className="w-4 h-4 ml-2" /> </Link>
-                                </div>
-                              </SelectItem>
-                            </>
-                        )}
-                      </SelectContent>
-                    </Select>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className='w-full max-w-lg'>
+                        <SelectValue placeholder='Select a team member' />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {teamMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          <div className='flex items-center gap-2'>
+                            {member.first_name + ' ' + member.last_name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                      {teamMembers.length === 0 && (
+                        // Fallback if no priorities loaded
+                        <>
+                          <SelectItem value=''>
+                            <div>
+                              {' '}
+                              <p className='text-center'>
+                                {' '}
+                                No team members found{' '}
+                              </p>
+                              <Link
+                                href='/team-members'
+                                className='text-center'>
+                                {' '}
+                                Add team members{' '}
+                                <PlusIcon className='w-4 h-4 ml-2' />{' '}
+                              </Link>
+                            </div>
+                          </SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
                   {/* <FormControl>
                     <MultiSelect
                       options={teamMembers.map((member) => ({
@@ -368,7 +403,6 @@ export function CreateTemplateForm({
                 </FormItem>
               )}
             />
-        
           </CardContent>
         </Card>
 
@@ -376,25 +410,29 @@ export function CreateTemplateForm({
         <Card className='rounded-md border-border'>
           <CardHeader>
             <CardTitle>Scheduling Rule</CardTitle>
-            <CardDescription>When should this task be scheduled relative to the booking?</CardDescription>
+            <CardDescription>
+              When should this task be scheduled relative to the booking?
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <FormField
               control={form.control}
-              name="offset_minutes"
+              name='offset_minutes'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Schedule this task...</FormLabel>
-                  <div className="flex items-center gap-2">
+                  <div className='flex items-center gap-2'>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        className="w-24" 
-                        {...field} 
+                      <Input
+                        type='number'
+                        className='w-24'
+                        {...field}
                         onChange={(e) => field.onChange(e.target.valueAsNumber)}
                       />
                     </FormControl>
-                    <span className="text-sm text-muted-foreground">minutes after checkout</span>
+                    <span className='text-sm text-muted-foreground'>
+                      minutes after checkout
+                    </span>
                   </div>
                   <FormDescription>
                     Use 0 for immediately after checkout.
@@ -410,18 +448,18 @@ export function CreateTemplateForm({
         <Card className='rounded-md border-border'>
           <CardHeader>
             <CardTitle>Checklist</CardTitle>
-            <CardDescription>Create a todo list of job steps to complete for this task.</CardDescription>
+            <CardDescription>
+              Create a todo list of job steps to complete for this task.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className='space-y-4'>
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
+              onDragEnd={handleDragEnd}>
               <SortableContext
                 items={fields.map((field) => field.id)}
-                strategy={verticalListSortingStrategy}
-              >
+                strategy={verticalListSortingStrategy}>
                 {fields.map((field, index) => (
                   <SortableItem
                     key={field.id}
@@ -435,19 +473,18 @@ export function CreateTemplateForm({
               </SortableContext>
             </DndContext>
             <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              onClick={() => append({ description: '' })}
-            >
-              <Plus className="mr-2 h-4 w-4" />
+              type='button'
+              variant='outline'
+              size='sm'
+              className='mt-2'
+              onClick={() => append({ description: '' })}>
+              <Plus className='mr-2 h-4 w-4' />
               Add Item
             </Button>
             {/* Show error for the array itself if it has minimum length validation */}
             <FormField
               control={form.control}
-              name="checklist"
+              name='checklist'
               render={() => <FormMessage />}
             />
           </CardContent>
@@ -457,13 +494,15 @@ export function CreateTemplateForm({
         <Card className='rounded-md border-border'>
           <CardHeader>
             <CardTitle>Apply to Properties</CardTitle>
-            <CardDescription>Select which properties should use this template automation.</CardDescription>
+            <CardDescription>
+              Select which properties should use this template automation.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <FormField
               control={form.control}
-              name="property_ids"
-              render={({field}) => (
+              name='property_ids'
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Properties</FormLabel>
                   <FormControl>
@@ -482,9 +521,9 @@ export function CreateTemplateForm({
                       maxCount={4}
                       className='border-border'
                       emptyIndicator={
-                        <div className="text-center p-4 text-muted-foreground">
-                          <SearchIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                          <p className="text-sm">
+                        <div className='text-center p-4 text-muted-foreground'>
+                          <SearchIcon className='h-8 w-8 mx-auto mb-2 text-muted-foreground/50' />
+                          <p className='text-sm'>
                             No properties found matching your search
                           </p>
                         </div>
@@ -499,15 +538,17 @@ export function CreateTemplateForm({
           </CardContent>
         </Card>
 
-        <div className="flex justify-end">
-             <Button disabled={isLoading} type='submit' className="w-full md:w-auto">
-                <Loader2Icon
-                  className={`mr-2 h-4 w-4 animate-spin ${isLoading ? 'block' : 'hidden'}`}
-                />
-                Create Template
-             </Button>
+        <div className='flex justify-end'>
+          <Button
+            disabled={isLoading}
+            type='submit'
+            className='w-full md:w-auto'>
+            <Loader2Icon
+              className={`mr-2 h-4 w-4 animate-spin ${isLoading ? 'block' : 'hidden'}`}
+            />
+            Create Template
+          </Button>
         </div>
-
       </form>
     </Form>
   );

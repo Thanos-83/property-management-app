@@ -34,15 +34,13 @@ export class SyncService {
           },
         ];
       }
-      
+
       //Parallel Execution for multiple iCal URLs
       // Instead of looping sequentially, we launch all syncs simultaneously.
-      const syncPromises = icalUrls.map(icalUrl => this.syncIcalUrl(icalUrl));
-      
+      const syncPromises = icalUrls.map((icalUrl) => this.syncIcalUrl(icalUrl));
+
       // allSettled waits for ALL to finish, even if some fail.
       const settledResults = await Promise.allSettled(syncPromises);
-
-      console.log('Settled results:', settledResults);
 
       for (const settled of settledResults) {
         if (settled.status === 'fulfilled') {
@@ -55,7 +53,11 @@ export class SyncService {
             icalSourceId: 'unknown',
             newBookings: 0,
             updatedBookings: 0,
-            errors: [settled.reason instanceof Error ? settled.reason.message : 'Unknown promise rejection']
+            errors: [
+              settled.reason instanceof Error
+                ? settled.reason.message
+                : 'Unknown promise rejection',
+            ],
           });
         }
       }
@@ -76,13 +78,12 @@ export class SyncService {
     }
   }
 
-
-   /**
+  /**
    * Sync a SINGLE specific iCal URL
    */
   static async syncSingleIcal(icalId: string): Promise<SyncResult[]> {
     const supabase = await createClient();
-    
+
     try {
       // Fetch the specific iCal link data
       const { data: icalUrl, error: icalError } = await supabase
@@ -92,42 +93,44 @@ export class SyncService {
         .single();
 
       if (icalError || !icalUrl) {
-        throw new Error(`Failed to find calendar link: ${icalError?.message || 'Not found'}`);
+        throw new Error(
+          `Failed to find calendar link: ${icalError?.message || 'Not found'}`,
+        );
       }
 
       // We return it as an array to match the expected format of the API route
       const result = await this.syncIcalUrl(icalUrl);
       return [result];
-      
     } catch (error) {
       console.error('Error syncing single iCal:', error);
-      return [{ 
-        success: false, 
-        propertyId: '', 
-        icalSourceId: icalId, 
-        newBookings: 0, 
-        updatedBookings: 0, 
-        errors: [error instanceof Error ? error.message : 'Unknown error'] 
-      }];
+      return [
+        {
+          success: false,
+          propertyId: '',
+          icalSourceId: icalId,
+          newBookings: 0,
+          updatedBookings: 0,
+          errors: [error instanceof Error ? error.message : 'Unknown error'],
+        },
+      ];
     }
   }
 
- 
-    /**
+  /**
    *  Bulk Upserts + The Diffing Engine
    */
   static async syncIcalUrl(icalSource: PropertyIcalUrls): Promise<SyncResult> {
     const supabase = await createClient();
     const errors: string[] = [];
-    
+
     let newBookingsCount = 0;
     let updatedBookingsCount = 0;
 
-    console.log('Syncing iCal URL:', icalSource.ical_url);
     try {
       // 1. Fetch and parse iCal data into memory
-      const parsedEvents = await IcalParser.fetchAndParseIcal(icalSource.ical_url);
-      console.log('Parsed events:', parsedEvents.length);
+      const parsedEvents = await IcalParser.fetchAndParseIcal(
+        icalSource.ical_url,
+      );
 
       // --- THE DIFFING ENGINE ---
       const today = new Date().toISOString().split('T')[0];
@@ -138,11 +141,16 @@ export class SyncService {
         .eq('ical_source_id', icalSource.id)
         .gte('end_date', today);
 
-      if (fetchError) throw new Error(`Failed to fetch existing bookings: ${fetchError.message}`);
+      if (fetchError)
+        throw new Error(
+          `Failed to fetch existing bookings: ${fetchError.message}`,
+        );
 
       // B. Create Sets for blazing fast comparisons
-      const existingUids = new Set((existingBookings || []).map(b => b.booking_uid));
-      const incomingUids = new Set(parsedEvents.map(e => e.uid));
+      const existingUids = new Set(
+        (existingBookings || []).map((b) => b.booking_uid),
+      );
+      const incomingUids = new Set(parsedEvents.map((e) => e.uid));
 
       // C. Calculate exact New vs Updated numbers
       for (const uid of incomingUids) {
@@ -155,13 +163,15 @@ export class SyncService {
 
       // D. Find Cancellations (Ghost Bookings)
       // "Which UIDs are in our database, but missing from the new iCal file?"
-      const cancelledUids = [...existingUids].filter(uid => !incomingUids.has(uid));
+      const cancelledUids = [...existingUids].filter(
+        (uid) => !incomingUids.has(uid),
+      );
 
       // --------------------------
 
       // 2. Format ALL events into an array of database-ready objects
       if (parsedEvents.length > 0) {
-        const bookingsToUpsert = parsedEvents.map(event => {
+        const bookingsToUpsert = parsedEvents.map((event) => {
           const platform = IcalParser.detectPlatform(event.description || '');
           const guestName = IcalParser.extractGuestName(event);
 
@@ -181,9 +191,9 @@ export class SyncService {
         // 3. Send the entire array to Supabase in ONE single network request!
         const { error: upsertError } = await supabase
           .from('bookings')
-          .upsert(bookingsToUpsert, { 
+          .upsert(bookingsToUpsert, {
             onConflict: 'booking_uid',
-            ignoreDuplicates: false 
+            ignoreDuplicates: false,
           });
 
         if (upsertError) {
@@ -193,19 +203,20 @@ export class SyncService {
 
       // 4. Handle Cancellations (Ghost Bookings)
       if (cancelledUids.length > 0) {
-        console.log(`Found ${cancelledUids.length} cancelled bookings. Updating database...`);
         const { error: cancelError } = await supabase
           .from('bookings')
-          .update({ 
-            status: 'cancelled', 
-            updated_at: new Date().toISOString() 
+          .update({
+            status: 'cancelled',
+            updated_at: new Date().toISOString(),
           })
           .in('booking_uid', cancelledUids)
           .eq('ical_source_id', icalSource.id); // Extra safety check
 
         if (cancelError) {
           console.error(`Failed to mark cancellations: ${cancelError.message}`);
-          errors.push(`Failed to cancel ${cancelledUids.length} missing bookings.`);
+          errors.push(
+            `Failed to cancel ${cancelledUids.length} missing bookings.`,
+          );
         }
       }
 
@@ -216,7 +227,7 @@ export class SyncService {
           last_synced_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           sync_status: 'success',
-          last_error_message: null
+          last_error_message: null,
         })
         .eq('id', icalSource.id);
 
@@ -224,20 +235,20 @@ export class SyncService {
         success: errors.length === 0,
         propertyId: icalSource.property_id,
         icalSourceId: icalSource.id,
-        newBookings: newBookingsCount, 
+        newBookings: newBookingsCount,
         updatedBookings: updatedBookingsCount,
         errors: errors.length > 0 ? errors : undefined,
       };
-
     } catch (error) {
       console.error('Error syncing iCal URL:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
 
       await supabase
         .from('property_icals')
-        .update({ 
-          sync_status: 'error',   
-          last_error_message: errorMessage, 
+        .update({
+          sync_status: 'error',
+          last_error_message: errorMessage,
           updated_at: new Date().toISOString(),
           last_synced_at: new Date().toISOString(),
         })
@@ -253,7 +264,6 @@ export class SyncService {
       };
     }
   }
-
 
   /**
    * Sync all properties for a user
@@ -271,7 +281,7 @@ export class SyncService {
 
       if (propertiesError) {
         throw new Error(
-          `Failed to fetch user properties: ${propertiesError.message}`
+          `Failed to fetch user properties: ${propertiesError.message}`,
         );
       }
 
@@ -288,26 +298,30 @@ export class SyncService {
         ];
       }
 
-
       // Parallel Execution for entire portfolio
-      const syncPromises = properties.map(property => this.syncProperty(property.id));
+      const syncPromises = properties.map((property) =>
+        this.syncProperty(property.id),
+      );
       const settledResults = await Promise.allSettled(syncPromises);
 
       for (const settled of settledResults) {
         if (settled.status === 'fulfilled') {
           allResults.push(...settled.value);
         } else {
-          allResults.push({ 
-            success: false, 
-            propertyId: 'unknown', 
-            icalSourceId: '', 
-            newBookings: 0, 
-            updatedBookings: 0, 
-            errors: [settled.reason instanceof Error ? settled.reason.message : 'Unknown error'] 
+          allResults.push({
+            success: false,
+            propertyId: 'unknown',
+            icalSourceId: '',
+            newBookings: 0,
+            updatedBookings: 0,
+            errors: [
+              settled.reason instanceof Error
+                ? settled.reason.message
+                : 'Unknown error',
+            ],
           });
         }
       }
-
 
       return allResults;
     } catch (error) {
@@ -344,7 +358,7 @@ export class SyncService {
             last_synced,
             status
           )
-        `
+        `,
         )
         .eq('owner_id', userId);
 

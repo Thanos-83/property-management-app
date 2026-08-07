@@ -77,9 +77,8 @@ export default function AddIcalModal({
       const response = await addPropertyIcalAction(
         propertyId,
         data.platform,
-        data.icalUrl
+        data.icalUrl,
       );
-console.log('Response:', response);
       if (response.status === 201) {
         setOpenDialog(false);
         toast.success('iCal URL added successfully');

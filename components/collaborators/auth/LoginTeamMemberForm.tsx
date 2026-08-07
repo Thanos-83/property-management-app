@@ -38,7 +38,6 @@ export default function LoginTeamMemberForm() {
 
   const onSubmit = async (formData: MemberSigninSchemaType) => {
     const response = await signInTeamMember(formData);
-    console.log('Response : ', response);
     if (response && !response?.success) {
       toast.error(response?.message);
       return;

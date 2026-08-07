@@ -47,10 +47,9 @@ export const Property = ({ property }: { property: PropertyTypesApi }) => {
 
       const result = await response.json();
 
-      console.log('Result syncing: ', result);
       if (result.success) {
         toast.success(
-          `Sync completed! ${result.summary.totalNewBookings} new bookings, ${result.summary.totalUpdatedBookings} updated`
+          `Sync completed! ${result.summary.totalNewBookings} new bookings, ${result.summary.totalUpdatedBookings} updated`,
         );
       } else {
         toast.error('Sync failed. Please try again.');
@@ -131,7 +130,7 @@ export const Property = ({ property }: { property: PropertyTypesApi }) => {
             Last synced:{' '}
             {property.property_icals[0]?.last_synced
               ? new Date(
-                  property.property_icals[0].last_synced
+                  property.property_icals[0].last_synced,
                 ).toLocaleString()
               : 'Never'}
           </span>

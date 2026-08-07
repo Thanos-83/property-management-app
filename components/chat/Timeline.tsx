@@ -59,7 +59,6 @@ export default function Timeline() {
       if (!activeThread) return;
       setIsLoading(true);
       const response = await getConversationMessages(activeThread);
-      console.log('Response:', response);
       if (response.success && response.data) setMessages(response.data);
       if (response.success && response.bookingInfo) {
         setBookingInfo(response.bookingInfo);

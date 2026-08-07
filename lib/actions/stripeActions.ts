@@ -21,11 +21,9 @@ export const fetchStripeProducts = async () => {
     interval_count,
     trial_period_days
     )
-    `
+    `,
     )
     .order('id', { ascending: true });
-  //   console.log('Stripe product data: ', productData);
-  //   console.log('Stripe product data error: ', error);
 
   if (error) {
     return { error };

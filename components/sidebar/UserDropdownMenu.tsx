@@ -21,8 +21,9 @@ export default function UserDropdownMenu() {
 
   const handleSignOut = async () => {
     const result = await supabase.auth.signOut();
-    console.log('Result signing out: ', result);
-    redirect('/');
+    if (result) {
+      redirect('/');
+    }
   };
 
   useEffect(() => {
@@ -35,7 +36,6 @@ export default function UserDropdownMenu() {
     };
     fetchUserInfo();
   }, [supabase.auth]);
-  // console.log(object);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

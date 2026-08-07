@@ -71,7 +71,6 @@ export default function BookingsTable({
   const [rowSelection, setRowSelection] = useState({});
   const [globalFilter, setGlobalFilter] = useState('');
 
-  console.log('Bookings data in BookingsTable component: ', data[0]);
   const table = useReactTable({
     data,
     columns,

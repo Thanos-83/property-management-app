@@ -17,7 +17,7 @@ serve(async (req: Request) => {
         {
           status: 401,
           headers: { 'Content-Type': 'application/json' },
-        }
+        },
       );
     }
 
@@ -42,11 +42,9 @@ serve(async (req: Request) => {
         {
           status: 401,
           headers: { 'Content-Type': 'application/json' },
-        }
+        },
       );
     }
-
-    console.log('Authenticated user:', user.id, user.email);
 
     // Parse request body
     const { email, role } = await req.json();
@@ -78,7 +76,7 @@ serve(async (req: Request) => {
         {
           status: 403,
           headers: { 'Content-Type': 'application/json' },
-        }
+        },
       );
     }
 
@@ -88,7 +86,7 @@ serve(async (req: Request) => {
       {
         data: { role },
         redirectTo: `${Deno.env.get('APP_URL')}/invitation-accept`,
-      }
+      },
     );
 
     if (error) {
@@ -123,7 +121,7 @@ serve(async (req: Request) => {
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      }
+      },
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

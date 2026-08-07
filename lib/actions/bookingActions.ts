@@ -32,8 +32,6 @@ export const fetchBookingsAction = async () => {
       return [];
     }
 
-    // console.log('Bookings Tasks: ', bookings[1]?.tasks)
-
     return (bookings as unknown as TableBooking[]) || [];
   } catch (error) {
     console.error('Unexpected error fetching bookings:', error);

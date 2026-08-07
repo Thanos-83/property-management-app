@@ -85,27 +85,15 @@ export default function EnhancedCalendar({
   // Add the Handler for the show more button
   const handleShowMore = (events: any[], date: Date) => {
     // Fetch ALL events (tasks + bookings) for this day
-    console.log('Events in show more: ', events);
-    console.log('Date in show more: ', date);
-    console.log('Data in show more: ', data);
-    const allEvents = 'events' in data ? data.events || [] : [];
-    const dailyEvents = allEvents.filter((event) =>
-      isSameDay(new Date(event.start), date),
-    );
-    console.log('Daily events in show more: ', dailyEvents);
     setDayDialogState({
       isOpen: true,
       date: date,
-      // events: dailyEvents as CalendarEvent[]
       events: events as CalendarEvent[],
     });
   };
 
   const data = use(bookingData);
 
-  console.log('Booking Data in Enhanced Calendar: ', data);
-
-  // console.log('Events data: ', data.events[0])
   const handleSelectEvent = (event: CalendarEvent) => {
     if (event.type === 'booking') {
       // Transform originalData to match TableBooking (property vs properties)
@@ -118,7 +106,6 @@ export default function EnhancedCalendar({
       setIsSelectedBookingConflicting((event as any).isConflicting || false);
       setIsBookingSheetOpen(true);
     } else if (event.type === 'task') {
-      console.log('Selected Task: ', event.resource.originalData);
       setSelectedTask(event.resource.originalData);
       setIsTaskSheetOpen(true);
     }

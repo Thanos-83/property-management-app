@@ -33,8 +33,9 @@ export default function LeftPane({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
         (payload) => {
-          console.log('New message:', payload.new);
-          router.refresh();
+          if (payload) {
+            router.refresh();
+          }
         },
       )
       .subscribe();
@@ -44,7 +45,6 @@ export default function LeftPane({
     };
   }, []);
 
-  console.log('Initial Conversations at LeftPane: ', initialConversations);
   return (
     <div className='flex flex-col h-full bg-background'>
       {/* 1. STICKY HEADER & SEARCH */}

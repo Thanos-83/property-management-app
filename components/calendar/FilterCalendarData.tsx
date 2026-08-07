@@ -28,16 +28,13 @@ function FilterCalendarData({ filterOptionsData }: FilterDataTypes) {
       history: 'push',
       shallow: false,
       startTransition,
-    })
+    }),
   );
 
   async function handlePlatformFilter(value: string) {
     setPlatform(value);
   }
   //   ============================================
-
-  //   console.log('Filter Options Data in the Client: ', filterOptionsData);
-
   // ========  Property Filtering ===============
   const [property, setProperty] = useQueryState(
     'property',
@@ -45,7 +42,7 @@ function FilterCalendarData({ filterOptionsData }: FilterDataTypes) {
       history: 'push',
       shallow: false,
       startTransition,
-    })
+    }),
   );
 
   async function handlePropertyFilter(value: string) {

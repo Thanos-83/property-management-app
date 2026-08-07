@@ -11,8 +11,6 @@ export default async function ChatPage() {
   const response = await getInboxConversations();
   const conversations: Conversation[] = response.success ? response.data : [];
 
-  //   console.log('Conversations:', response);
-
   return (
     // The main container: full height, hidden overflow to allow inner scrolling
     <div className='flex h-[calc(100dvh-4rem)] bg-white overflow-hidden'>

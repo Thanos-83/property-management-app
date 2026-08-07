@@ -74,7 +74,6 @@ export function DayOverviewDialog({
   const tasks = events.filter((e) => e.type === 'task');
   const hasMultipleBookings = bookings.length > 1;
 
-  console.log('Bookings in DayOverviewDialog: ', bookings);
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className='sm:max-w-[550px] p-0 overflow-hidden bg-background'>
@@ -234,7 +233,6 @@ export function DayOverviewDialog({
 
                 <div className='flex flex-col gap-3'>
                   {tasks.map((event) => {
-                    console.log('Task Event in DayOverviewDialog: ', event);
                     const taskType = event.resource?.taskType || 'Maintenance';
                     const isCleaning = taskType === 'Cleaning';
                     const propertyName =

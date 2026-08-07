@@ -32,8 +32,6 @@ export async function POST(request: Request) {
     const body = await request.text();
     const headersList = await headers();
 
-    // console.log('Webhook headers list: ', headersList);
-
     const signature = headersList.get('stripe-signature') as string;
     // Process the webhook payload
     try {
@@ -77,7 +75,7 @@ export async function POST(request: Request) {
           const subscription = event.data.object as Stripe.Subscription;
           // console.log('Subscription data: ', subscription);
           await handleSubscriptionStatusChange(
-            subscription.id
+            subscription.id,
             // subscription.customer as string,
             // event.type === 'customer.subscription.created'
           );
@@ -89,7 +87,7 @@ export async function POST(request: Request) {
           if (checkoutSession.mode === 'subscription') {
             const subscriptionId = checkoutSession.subscription;
             await handleSubscriptionStatusChange(
-              subscriptionId as string
+              subscriptionId as string,
               // checkoutSession.customer as string,
               // true
             );
@@ -102,7 +100,7 @@ export async function POST(request: Request) {
       console.log(error);
       return new Response(
         'Webhook error: "Webhook handler failed. View logs."',
-        { status: 400 }
+        { status: 400 },
       );
     }
   }

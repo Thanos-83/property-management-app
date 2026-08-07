@@ -93,7 +93,6 @@ export default function TasksTable({
       table.toggleAllRowsSelected(false);
       toast.success(`${taskIds.length} tasks deleted successfully`);
     } catch (error) {
-      console.log('Error deleting tasks: ', error);
       toast.error('Failed to delete selected tasks');
     } finally {
       setIsDeleting(false);

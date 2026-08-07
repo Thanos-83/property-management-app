@@ -25,11 +25,6 @@ const TaskActivityTimeline = forwardRef(
     currentUserInfo,
     teamMembers = [],
   }: TaskActivityTimelineProps) => {
-    console.log(
-      'Current user info in Task Activity Timeline: ',
-      currentUserInfo,
-    );
-
     // --- HELPER TO RENDER BOLD TEXT FROM LOGS ---
     const renderLogContent = (text: string) => {
       if (!text) return null;

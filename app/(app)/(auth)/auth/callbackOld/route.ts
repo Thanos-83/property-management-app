@@ -14,10 +14,6 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   // if "next" is in param, use it as the redirect URL
   let next = searchParams.get('next') ?? '/dashboard';
-  // console.log('🔍 Code from OAuth:', code);
-  // console.log('🔍 Host in OAuth:', host);
-  // console.log('🔍 Origin in callback:', origin);
-  // console.log('🔍 All search params:', [...searchParams.entries()]);
 
   if (!next.startsWith('/')) {
     // if "next" is not a relative URL, use the default
@@ -39,7 +35,7 @@ export async function GET(request: Request) {
 
       console.log(
         'User in the in auth->callback route: ',
-        user ? user.email : 'No user found'
+        user ? user.email : 'No user found',
       );
 
       const userProfile = await supabase
@@ -60,7 +56,7 @@ export async function GET(request: Request) {
           const response = await supabase.from('profiles').insert([newUser]);
           console.log(
             'Response creating new user in auth->callback: ',
-            response
+            response,
           );
           if (!response.error)
             return NextResponse.redirect(`${origin}/dashboard`);

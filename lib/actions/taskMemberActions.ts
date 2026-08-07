@@ -53,8 +53,6 @@ export async function signInTeamMember(formData: MemberSigninSchemaType) {
       };
     }
 
-    console.log('Data signing in member: ', data);
-
     if (profileError) {
       throw new Error('Supabase error finding profile data!!');
     }
@@ -80,9 +78,14 @@ type InvitePayload = {
   metadata?: Record<string, string>;
 };
 export const memberInvitationAction = async (payload: InvitePayload) => {
-  const { email, first_name, last_name, member_role, expiresInHours = 48, metadata = {} } = payload;
-
-  console.log('Invite member action data: ', payload);
+  const {
+    email,
+    first_name,
+    last_name,
+    member_role,
+    expiresInHours = 48,
+    metadata = {},
+  } = payload;
 
   // Supabase admin client (using Service Role Key)
   const supabaseAdmin = createServiceClient();
@@ -97,7 +100,6 @@ export const memberInvitationAction = async (payload: InvitePayload) => {
     .select('email, expires_at, used, click_count, max_clicks')
     .eq('email', email)
     .single();
-  console.log('Member info: ', memberInfo);
 
   if (memberInfo && memberInfo.used) {
     return {
@@ -152,7 +154,7 @@ export const memberInvitationAction = async (payload: InvitePayload) => {
 
   // 4) compute expiry
   const expiresAt = new Date(
-    Date.now() + expiresInHours * 3600 * 1000 // 'expiresInHoures' hours (60 mins x 60 secs)
+    Date.now() + expiresInHours * 3600 * 1000, // 'expiresInHoures' hours (60 mins x 60 secs)
     // Date.now() + 1 * 120 * 1000 //two minutes (2 mins x 60 secs)
   ).toISOString();
 
@@ -160,10 +162,6 @@ export const memberInvitationAction = async (payload: InvitePayload) => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  if (!user) {
-    console.log('User not exists');
-  }
 
   // 6) Send invitation email with Resend containing the link with all necessary info
   const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -177,7 +175,7 @@ export const memberInvitationAction = async (payload: InvitePayload) => {
     const { data, error } = await resend.emails.send({
       from: 'Welcome to Rendy.com <thanos_info@cloudplatforms.space>',
       to: email,
-      subject: 'Invitation to create account!', 
+      subject: 'Invitation to create account!',
       react: InviteMemberEmail({ acceptUrl, expiresAt }),
     });
 
@@ -253,10 +251,9 @@ type UpdateInvitePayload = {
   token: string;
 };
 
-
 // Update member invitation action
 export const updateMemberInvitationAction = async (
-  payload: UpdateInvitePayload
+  payload: UpdateInvitePayload,
 ) => {
   const supabase = createServiceClient();
   const { token } = payload;
@@ -288,15 +285,16 @@ export const updateMemberInvitationAction = async (
 
     // GUARD 4: Max Clicks Reached (Check this BEFORE incrementing)
     if (invitationData.click_count >= invitationData.max_clicks) {
-      return { 
-        status: 2, 
-        message: 'You have reached the maximum number of times you can use the current link!' 
+      return {
+        status: 2,
+        message:
+          'You have reached the maximum number of times you can use the current link!',
       };
     }
 
     // --- ALL CLEAR: Increment the click count ---
     const newClickCount = (invitationData.click_count || 0) + 1;
-    
+
     const { data, error: updateError } = await supabase
       .from('invites')
       .update({
@@ -309,7 +307,7 @@ export const updateMemberInvitationAction = async (
       .single();
 
     if (updateError) {
-       return { status: 5, message: 'Failed to update token tracking.' };
+      return { status: 5, message: 'Failed to update token tracking.' };
     }
 
     // SUCCESS (Status 1 indicates the UI should render the form)
@@ -318,15 +316,16 @@ export const updateMemberInvitationAction = async (
       message: 'Valid token',
       data: { clickCount: data.click_count, expiresAt: data.expires_at },
     };
-
   } catch (err) {
-    console.error("Token validation error:", err);
+    console.error('Token validation error:', err);
     return { status: 5, message: 'Unexpected server error' };
   }
 };
 
 // Create Team Member Final Action
-export const createMemberFinalAction = async (data: CreateMemberSchemaType & { token: string }) => {
+export const createMemberFinalAction = async (
+  data: CreateMemberSchemaType & { token: string },
+) => {
   const { firstName, lastName, mobilePhone, password, token } = data;
   const supabaseAdmin = createServiceClient();
 
@@ -342,12 +341,14 @@ export const createMemberFinalAction = async (data: CreateMemberSchemaType & { t
     return { status: 'fail', message: 'Invalid or missing invitation token.' };
   }
   if (inviteData.used) {
-    return { status: 'fail', message: 'This invitation has already been used.' };
+    return {
+      status: 'fail',
+      message: 'This invitation has already been used.',
+    };
   }
 
   const { email, inviter_id } = inviteData;
 
-  console.log('Invite data: ', inviteData)
   // 2. CREATE USER
   const { data: createdMemberData, error: errorCreatedMember } =
     await supabaseAdmin.auth.admin.createUser({
@@ -364,22 +365,31 @@ export const createMemberFinalAction = async (data: CreateMemberSchemaType & { t
         role: 'member',
       },
     });
-  console.log('Created member data: ', createdMemberData)
-  console.log('Error created member: ', errorCreatedMember)
+
   if (errorCreatedMember) {
     // Handle the specific case where the email already exists
-    if (errorCreatedMember.message.toLowerCase().includes('already registered') || errorCreatedMember.message.toLowerCase().includes('already exists')) {
+    if (
+      errorCreatedMember.message.toLowerCase().includes('already registered') ||
+      errorCreatedMember.message.toLowerCase().includes('already exists')
+    ) {
       return {
         status: 'fail',
-        message: 'An account with this email already exists. Please go to the Login page to access your account.',
+        message:
+          'An account with this email already exists. Please go to the Login page to access your account.',
       };
     }
-    
+
     // Handle the specific case where the phone number is already used
-    if (errorCreatedMember.code === 'phone_exists' || errorCreatedMember.message.toLowerCase().includes('phone number already registered')) {
+    if (
+      errorCreatedMember.code === 'phone_exists' ||
+      errorCreatedMember.message
+        .toLowerCase()
+        .includes('phone number already registered')
+    ) {
       return {
         status: 'fail',
-        message: 'This phone number is already in use by another account. Please use a different phone number.',
+        message:
+          'This phone number is already in use by another account. Please use a different phone number.',
       };
     }
 
@@ -431,7 +441,7 @@ export const getTaskMembersAction = async () => {
     const { data, error, status } = await supabase
       .from('team_members')
       .select()
-      .eq('inviter_id', user?.id) 
+      .eq('inviter_id', user?.id)
       .eq('status', 'active');
 
     if (error) {
@@ -462,10 +472,15 @@ export const deleteTeamMemberAction = async (memberId: string) => {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return { error: 'Unauthorized', status: 401, result: 'fail', member: null };
+      return {
+        error: 'Unauthorized',
+        status: 401,
+        result: 'fail',
+        member: null,
+      };
     }
 
-    // 1) First, get the member's email before we delete them, 
+    // 1) First, get the member's email before we delete them,
     // so we can also delete any pending invitations they might have.
     const { data: memberData } = await supabase
       .from('team_members')
@@ -475,7 +490,12 @@ export const deleteTeamMemberAction = async (memberId: string) => {
       .single();
 
     if (!memberData) {
-       return { member: null, error: 'Member not found', status: 404, result: 'fail' };
+      return {
+        member: null,
+        error: 'Member not found',
+        status: 404,
+        result: 'fail',
+      };
     }
 
     // 2) Delete from team_members
@@ -486,7 +506,12 @@ export const deleteTeamMemberAction = async (memberId: string) => {
       .eq('inviter_id', user.id);
 
     if (response.error) {
-      return { member: null, error: response.error.message, status: response.status, result: 'fail' };
+      return {
+        member: null,
+        error: response.error.message,
+        status: response.status,
+        result: 'fail',
+      };
     }
 
     // 3) If they were pending, clean up the invites table!
@@ -497,13 +522,18 @@ export const deleteTeamMemberAction = async (memberId: string) => {
         .eq('email', memberData.email)
         .eq('inviter_id', user.id);
 
-        if(responseDeleteInvite.error){
-            return { member: null, error: responseDeleteInvite.error.message, status: responseDeleteInvite.status, result: 'fail' };
-        }
+      if (responseDeleteInvite.error) {
+        return {
+          member: null,
+          error: responseDeleteInvite.error.message,
+          status: responseDeleteInvite.status,
+          result: 'fail',
+        };
+      }
     }
 
-    revalidatePath('/dashboard/members'); 
-    
+    revalidatePath('/dashboard/members');
+
     return { status: 200, result: 'success', error: null, member: null };
   } catch (error) {
     console.error('Error deleting task member:', error);
@@ -511,7 +541,7 @@ export const deleteTeamMemberAction = async (memberId: string) => {
       error: 'Error deleting task member',
       status: 500,
       result: 'fail',
-      member: null
+      member: null,
     };
   }
 };
@@ -538,17 +568,24 @@ export const fetchTeamMembersAction = async () => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      return {members:null, error: error.message, status: status, result: 'fail' };
+      return {
+        members: null,
+        error: error.message,
+        status: status,
+        result: 'fail',
+      };
     }
 
-     // --- NEW: Fetch invite details for pending members to check expiration/clicks ---
+    // --- NEW: Fetch invite details for pending members to check expiration/clicks ---
     if (data && data.length > 0) {
-      const pendingEmails = data.filter(m => m.status === 'pending').map(m => m.email);
-      
+      const pendingEmails = data
+        .filter((m) => m.status === 'pending')
+        .map((m) => m.email);
+
       if (pendingEmails.length > 0) {
         // Use Admin client to securely bypass any RLS on the invites table
         const supabaseAdmin = createServiceClient();
-        
+
         const { data: invites } = await supabaseAdmin
           .from('invites')
           .select('email, expires_at, click_count, max_clicks')
@@ -556,9 +593,9 @@ export const fetchTeamMembersAction = async () => {
           .eq('inviter_id', user.id);
 
         if (invites) {
-          data.forEach(member => {
+          data.forEach((member) => {
             if (member.status === 'pending') {
-              const inv = invites.find(i => i.email === member.email);
+              const inv = invites.find((i) => i.email === member.email);
               if (inv) {
                 // Attach the invite metadata to the member object so the UI can read it
                 member.invite_details = inv;
@@ -569,14 +606,14 @@ export const fetchTeamMembersAction = async () => {
       }
     }
 
-    return { members: data, error:null, status: status, result: 'success' };
-  } catch (error) { 
+    return { members: data, error: null, status: status, result: 'success' };
+  } catch (error) {
     console.error('Error fetching task members:', error);
     return {
       error: 'Error fetching task members',
       status: 500,
       result: 'fail',
-      members:null
+      members: null,
     };
   }
 };
@@ -588,7 +625,10 @@ export const resendInvitationAction = async (email: string) => {
     const supabaseAdmin = createServiceClient(); // Needed to query/update invites securely
 
     // 1. Auth check
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
     if (userError || !user) {
       return { status: false, message: 'Unauthorized' };
     }
@@ -605,14 +645,19 @@ export const resendInvitationAction = async (email: string) => {
       return { status: false, message: 'Original invitation not found' };
     }
     if (memberInfo.used) {
-      return { status: false, message: 'This user has already accepted their invitation' };
+      return {
+        status: false,
+        message: 'This user has already accepted their invitation',
+      };
     }
 
     // 3. Generate a brand new token and hash
     const rawToken = randomBytes(32).toString('hex');
     const hash = createHash('sha256').update(rawToken).digest('hex');
     const expiresInHours = 48;
-    const expiresAt = new Date(Date.now() + expiresInHours * 3600 * 1000).toISOString();
+    const expiresAt = new Date(
+      Date.now() + expiresInHours * 3600 * 1000,
+    ).toISOString();
 
     // 4. Update the invites table with fresh data
     const { error: updateError } = await supabaseAdmin
@@ -623,13 +668,16 @@ export const resendInvitationAction = async (email: string) => {
         click_count: 0,
         max_clicks: 5,
         started: false,
-        last_clicked_at: null
+        last_clicked_at: null,
       })
       .eq('email', email)
       .eq('inviter_id', user.id);
 
     if (updateError) {
-      return { status: false, message: 'Failed to update invitation token in database' };
+      return {
+        status: false,
+        message: 'Failed to update invitation token in database',
+      };
     }
 
     // 5. Send the new email
@@ -640,17 +688,23 @@ export const resendInvitationAction = async (email: string) => {
     const { error: emailError } = await resend.emails.send({
       from: 'Welcome to Rendy.com <thanos_info@cloudplatforms.space>',
       to: email,
-      subject: 'Reminder: Invitation to join the team!', 
+      subject: 'Reminder: Invitation to join the team!',
       react: InviteMemberEmail({ acceptUrl, expiresAt }),
     });
 
     if (emailError) {
-      return { status: false, message: `Error sending email: ${emailError.message}` };
+      return {
+        status: false,
+        message: `Error sending email: ${emailError.message}`,
+      };
     }
 
     return { status: true, message: 'Invitation resent successfully!' };
   } catch (error) {
     console.error('Error resending invitation:', error);
-    return { status: false, message: 'Unexpected error occurred while resending' };
+    return {
+      status: false,
+      message: 'Unexpected error occurred while resending',
+    };
   }
-}
+};

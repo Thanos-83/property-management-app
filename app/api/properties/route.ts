@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { createApiClient } from '@/lib/utils/supabase/api';
 import { createPropertySchema } from '@/lib/schemas/property';
 import { revalidateTag } from 'next/cache';
+import { BookingEvent } from '@/types/bookingTypes';
 
 export async function POST(req: Request) {
   const supabase = await createApiClient(req);
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Invalid data', issues: parsed.error.format() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -62,7 +63,6 @@ export async function POST(req: Request) {
   return NextResponse.json({ property: data }, { status: 201 });
 }
 
-
 export async function GET(request: Request) {
   try {
     const supabase = await createApiClient(request);
@@ -76,23 +76,25 @@ export async function GET(request: Request) {
     if (userError || !user) {
       console.log(
         'Error parsing user info in API Properties ROUTE: ',
-        userError
+        userError,
       );
       return NextResponse.json(
         { error: 'Unauthorized User. Can not access User INFO' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Select into database
     const { data, error, status } = await supabase
       .from('properties')
-      .select(`
+      .select(
+        `
         *,
         property_icals(*),
         template_links:property_template_link(*),
         bookings(*)
-      `)
+      `,
+      )
       .eq('owner_id', user?.id)
       .order('created_at', { ascending: true });
 
@@ -106,29 +108,33 @@ export async function GET(request: Request) {
 
     const propertiesWithStats = data.map((property) => {
       // 1. Filter out cancelled bookings and past bookings
-      const upcomingBookings = (property.bookings || []).filter((booking: any) => {
-        if (booking.status?.toLowerCase() === 'cancelled') return false;
-        
-        // Check if the check-out date is today or in the future
-        const endDate = new Date(booking.end_date);
-        return endDate >= today;
-      });
+      const upcomingBookings = (property.bookings || []).filter(
+        (booking: BookingEvent) => {
+          if (booking.status?.toLowerCase() === 'cancelled') return false;
+
+          // Check if the check-out date is today or in the future
+          const endDate = new Date(booking.end_date);
+          return endDate >= today;
+        },
+      );
 
       // 2. Attach the count to the property object
       return {
         ...property,
-        upcoming_bookings_count: upcomingBookings.length
+        upcoming_bookings_count: upcomingBookings.length,
       };
     });
 
     // Return the enriched array with a 200 status (200 is standard for GET requests)
-    return NextResponse.json({ properties: propertiesWithStats }, { status: 200 });
-    
+    return NextResponse.json(
+      { properties: propertiesWithStats },
+      { status: 200 },
+    );
   } catch (error) {
     console.error('Properties API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

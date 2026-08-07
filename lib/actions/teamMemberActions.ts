@@ -1,20 +1,21 @@
-"use server"
+'use server';
 
-
-import { createClient } from "@/lib/utils/supabase/server";
-import { createServiceClient } from "@/lib/utils/supabase/supabaseDB";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-
+import { createClient } from '@/lib/utils/supabase/server';
+import { createServiceClient } from '@/lib/utils/supabase/supabaseDB';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 // Fetch tasks assigned to the currently logged-in team member
 export const getMyAssignedTasksAction = async () => {
   try {
     const supabase = await createClient();
-    const supabaseAdmin = createServiceClient();   
+    const supabaseAdmin = createServiceClient();
 
     // 1. Get the authenticated user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
     if (userError || !user) {
       return { error: 'Unauthorized', status: 401, data: null };
@@ -27,16 +28,20 @@ export const getMyAssignedTasksAction = async () => {
       .eq('auth_member_id', user.id)
       .single();
 
-    // console.log('Team Member Profile: ', memberProfile)
     if (profileError || !memberProfile) {
-      console.error("Team member profile not found for user:", user.id);
-      return { error: 'Team member profile not found', status: 404, data: null };
+      console.error('Team member profile not found for user:', user.id);
+      return {
+        error: 'Team member profile not found',
+        status: 404,
+        data: null,
+      };
     }
 
     // 3. Fetch their assigned tasks, including the property title
     const { data: tasks, error: tasksError } = await supabaseAdmin
       .from('tasks')
-      .select(`
+      .select(
+        `
         id,
         type,
         status,
@@ -45,22 +50,21 @@ export const getMyAssignedTasksAction = async () => {
         notes,
         property_id,
         property:properties!tasks_property_id_fkey(title, location)
-      `)
+      `,
+      )
       .eq('team_member_id', memberProfile.id)
       .neq('status', 'cancelled') // Don't show cancelled tasks
       .order('scheduled_date', { ascending: true });
 
-    // console.log('Team Member Tasks: ', tasks)
-    // console.log('Tasks Error: ', tasksError)
     if (tasksError) {
       return { error: tasksError.message, status: 500, data: null };
     }
 
-    return { 
-      data: tasks, 
+    return {
+      data: tasks,
       member: memberProfile, // Returning the profile so we can say "Hello, Maria"
-      status: 200, 
-      error: null 
+      status: 200,
+      error: null,
     };
   } catch (error) {
     console.error('Error fetching assigned tasks:', error);
@@ -75,9 +79,13 @@ export const getMyAssignedTasksAction = async () => {
 export const getSingleAssignedTaskAction = async (taskId: string) => {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    if (userError || !user) return { error: 'Unauthorized', status: 401, data: null };
+    if (userError || !user)
+      return { error: 'Unauthorized', status: 401, data: null };
 
     // 1. Get their team member profile ID
     const { data: memberProfile } = await supabase
@@ -86,28 +94,38 @@ export const getSingleAssignedTaskAction = async (taskId: string) => {
       .eq('auth_member_id', user.id)
       .single();
 
-    if (!memberProfile) return { error: 'Profile not found', status: 404, data: null };
+    if (!memberProfile)
+      return { error: 'Profile not found', status: 404, data: null };
 
     // 2. Fetch the specific task using Admin client to bypass Property RLS
     const supabaseAdmin = createServiceClient();
     const { data: task, error: taskError } = await supabaseAdmin
       .from('tasks')
-      .select(`
+      .select(
+        `
         *,
         property:properties!tasks_property_id_fkey(title, location),
         taskTodos:task_list_item(*),
         attachments:task_attachments(*),
         task_activity(*)
-      `)
+      `,
+      )
       .eq('id', taskId)
       .eq('team_member_id', memberProfile.id) // SECURITY: Must be assigned to them!
       .single();
 
-    if (taskError || !task) return { error: 'Task not found or unauthorized', status: 404, data: null };
+    if (taskError || !task)
+      return {
+        error: 'Task not found or unauthorized',
+        status: 404,
+        data: null,
+      };
 
     // Sort checklist items
     if (task.taskTodos) {
-      task.taskTodos.sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0));
+      task.taskTodos.sort(
+        (a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0),
+      );
     }
 
     return { data: task, status: 200, error: null };
@@ -116,10 +134,16 @@ export const getSingleAssignedTaskAction = async (taskId: string) => {
   }
 };
 
-export const toggleChecklistItemAction = async (itemId: string, isCompleted: boolean, taskId: string) => {
+export const toggleChecklistItemAction = async (
+  itemId: string,
+  isCompleted: boolean,
+  taskId: string,
+) => {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
     // Find their profile ID
@@ -145,16 +169,16 @@ export const toggleChecklistItemAction = async (itemId: string, isCompleted: boo
     // Update the item via Admin client to bypass RLS blocks
     const { error } = await supabaseAdmin
       .from('task_list_item')
-      .update({ 
+      .update({
         is_completed: isCompleted,
         completed_datetime: isCompleted ? new Date().toISOString() : null,
-        completed_by_member: isCompleted ? user.id : null 
+        completed_by_member: isCompleted ? user.id : null,
       })
       .eq('id', itemId)
       .eq('task_id', taskId); // Secondary security check
 
     if (error) throw error;
-    
+
     revalidatePath(`/member/tasks/${taskId}`);
     return { success: true };
   } catch (error: any) {
@@ -165,7 +189,9 @@ export const toggleChecklistItemAction = async (itemId: string, isCompleted: boo
 export const completeAssignedTaskAction = async (taskId: string) => {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
     // Find their profile ID
@@ -193,7 +219,7 @@ export const completeAssignedTaskAction = async (taskId: string) => {
       task_id: taskId,
       user_id: user.id,
       activity_type: 'system_log',
-      content: `Marked the task as **Completed**`
+      content: `Marked the task as **Completed**`,
     });
 
     revalidatePath('/member/tasks');
@@ -204,10 +230,17 @@ export const completeAssignedTaskAction = async (taskId: string) => {
   }
 };
 
-export const uploadTaskAttachmentRecordAction = async (taskId: string, fileUrl: string, fileName: string, fileType: string) => {
+export const uploadTaskAttachmentRecordAction = async (
+  taskId: string,
+  fileUrl: string,
+  fileName: string,
+  fileType: string,
+) => {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
     // Find their profile ID
@@ -232,13 +265,17 @@ export const uploadTaskAttachmentRecordAction = async (taskId: string, fileUrl: 
     if (!task) return { success: false, error: 'Unauthorized task access' };
 
     // Use Admin client to bypass any insert restrictions
-    const { data, error } = await supabaseAdmin.from('task_attachments').insert({
-      task_id: taskId,
-      file_url: fileUrl,
-      file_name: fileName,
-      file_type: fileType,
-      uploaded_by: user.id
-    }).select().single();
+    const { data, error } = await supabaseAdmin
+      .from('task_attachments')
+      .insert({
+        task_id: taskId,
+        file_url: fileUrl,
+        file_name: fileName,
+        file_type: fileType,
+        uploaded_by: user.id,
+      })
+      .select()
+      .single();
 
     if (error) throw error;
 
@@ -246,7 +283,7 @@ export const uploadTaskAttachmentRecordAction = async (taskId: string, fileUrl: 
       task_id: taskId,
       user_id: user.id,
       activity_type: 'system_log',
-      content: `Uploaded a photo: **${fileName}**`
+      content: `Uploaded a photo: **${fileName}**`,
     });
 
     revalidatePath(`/member/tasks/${taskId}`);
@@ -259,7 +296,9 @@ export const uploadTaskAttachmentRecordAction = async (taskId: string, fileUrl: 
 export const addTaskCommentAction = async (taskId: string, content: string) => {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
     // Find their profile ID
@@ -287,11 +326,11 @@ export const addTaskCommentAction = async (taskId: string, content: string) => {
       task_id: taskId,
       user_id: user.id,
       activity_type: 'user_comment',
-      content: content
+      content: content,
     });
 
     if (error) throw error;
-    
+
     revalidatePath(`/member/tasks/${taskId}`);
     return { success: true };
   } catch (error: any) {
@@ -299,14 +338,17 @@ export const addTaskCommentAction = async (taskId: string, content: string) => {
   }
 };
 
-
 export const getMemberProfileAction = async () => {
   try {
     const supabase = await createClient();
-    
+
     // 1. Get authenticated user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) return { error: 'Unauthorized', status: 401, data: null };
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user)
+      return { error: 'Unauthorized', status: 401, data: null };
 
     // 2. Fetch their team_member profile
     const { data: profile, error: profileError } = await supabase
@@ -321,7 +363,7 @@ export const getMemberProfileAction = async () => {
 
     // 3. Fetch their task stats using Admin Client (bypassing Property RLS)
     const supabaseAdmin = createServiceClient();
-    
+
     const { count: completedCount } = await supabaseAdmin
       .from('tasks')
       .select('*', { count: 'exact', head: true })
@@ -340,8 +382,8 @@ export const getMemberProfileAction = async () => {
       ...profile,
       stats: {
         completed: completedCount || 0,
-        pending: pendingCount || 0
-      }
+        pending: pendingCount || 0,
+      },
     };
 
     return { data: profileWithStats, status: 200, error: null };
@@ -350,7 +392,6 @@ export const getMemberProfileAction = async () => {
     return { error: 'Internal Server Error', status: 500, data: null };
   }
 };
-
 
 // Update Team Member Information
 export const updateMemberProfileAction = async (data: {
@@ -362,9 +403,12 @@ export const updateMemberProfileAction = async (data: {
   try {
     const supabase = await createClient();
     const supabaseAdmin = createServiceClient();
-    
+
     // 1. Get authenticated user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
     if (userError || !user) {
       return { success: false, error: 'Unauthorized' };
     }
@@ -393,11 +437,14 @@ export const updateMemberProfileAction = async (data: {
 
     // 4. Refresh the UI
     revalidatePath('/member/profile');
-    
+
     return { success: true };
   } catch (error: any) {
     console.error('Error updating member profile:', error);
-    return { success: false, error: error.message || 'Failed to update profile' };
+    return {
+      success: false,
+      error: error.message || 'Failed to update profile',
+    };
   }
 };
 
@@ -406,4 +453,3 @@ export const memberSignOutAction = async () => {
   await supabase.auth.signOut();
   redirect('/login');
 };
-

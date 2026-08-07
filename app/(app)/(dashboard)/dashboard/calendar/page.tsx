@@ -22,7 +22,6 @@ async function Calendar({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  // console.log('Search Params in Calendar Server Page: ', params);
 
   const { platform = 'All', property = '' } = params as {
     platform?: string;
@@ -46,16 +45,12 @@ async function Calendar({
   const supabase = await createClient();
   const user = await supabase.auth.getUser();
 
-  // console.log('User: ', user);
-  // console.log('User user_metadata: ', user.data.user?.user_metadata);
-  // console.log('User app_metadata: ', user.data.user?.app_metadata);
-
-  console.log('Taks Members Data in Calendar page: ', taskMembersData);
-
-  const teamMembers = taskMembersData.members.map((member) => ({
-    id: member.id,
-    name: member.first_name + ' ' + member.last_name,
-  }));
+  const teamMembers = taskMembersData?.members
+    ? taskMembersData.members.map((member) => ({
+        id: member.id,
+        name: member.first_name + ' ' + member.last_name,
+      }))
+    : [];
   const currentUserInfo = {
     id: user.data.user?.id,
     // email: user.data.user?.email,
