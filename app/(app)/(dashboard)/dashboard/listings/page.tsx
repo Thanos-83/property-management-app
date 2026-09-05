@@ -4,9 +4,9 @@ import { protocol, rootDomain } from '@/lib/utils';
 import ListingsClient from '@/components/properties/ListingsClient';
 import { createClient } from '@/lib/utils/supabase/server';
 import { PropertyTaskTemplate } from '@/types/propertyTypes';
+import { checkAccess } from '@/lib/utils/gatekeeper'; // 1. Import the gatekeeper
 
 export default async function DashboardListingsPage() {
-  // Test API call with proper cookie forwarding from server component
   const cookieStore = await cookies();
   const cookieHeader = cookieStore
     .getAll()
@@ -17,6 +17,10 @@ export default async function DashboardListingsPage() {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   }
 
+  // 2. Ask the gatekeeper if they are allowed to add MORE properties
+  const access = await checkAccess('properties');
+
+  console.log('access from listings page', access);
   const baseUrl = `${protocol}://app.${rootDomain}`;
   const response = await fetch(`${baseUrl}/api/properties/`, {
     headers: {
@@ -30,7 +34,6 @@ export default async function DashboardListingsPage() {
 
   const { properties } = await response.json();
 
-  // NEW: Fetch the user's active task templates
   const supabase = await createClient();
   const {
     data: { user },
@@ -47,6 +50,7 @@ export default async function DashboardListingsPage() {
 
     templates = data || [];
   }
+
   return (
     <div className='flex-1 overflow-y-auto bg-slate-50/50 min-h-screen'>
       {/* --- HEADER --- */}
@@ -56,7 +60,12 @@ export default async function DashboardListingsPage() {
             Property Portfolio
           </h1>
           <div className='space-x-6'>
-            <AddPropertyDialog />
+            {/* 3. Pass the access results into the Dialog! */}
+            <AddPropertyDialog
+              canAdd={access.allowed}
+              reason={access.reason}
+              currentTier={access.currentTier}
+            />
           </div>
         </div>
       </div>

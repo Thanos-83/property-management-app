@@ -28,10 +28,15 @@ export default function ListingsClient({
     setSelectedProperty(property);
     setIsSheetOpen(true);
   };
+  // console.log('Initial properties: ', initialProperties[0]);
+
+  const visibleProperties = initialProperties.filter(
+    (property) => property.status !== 'archived',
+  );
 
   return (
     <div className='w-full'>
-      {initialProperties.length === 0 ? (
+      {visibleProperties.length === 0 ? (
         <div className='flex flex-col items-center justify-center p-12 border-2 border-dashed border-border rounded-xl bg-white/50 text-center'>
           <p className='text-lg font-bold text-foreground mb-1'>
             No properties found
@@ -42,7 +47,7 @@ export default function ListingsClient({
         </div>
       ) : (
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
-          {initialProperties.map((property) => (
+          {visibleProperties.map((property) => (
             <PropertyCard
               key={property.id}
               property={property}

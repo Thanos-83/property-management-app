@@ -8,6 +8,7 @@ import {
   updateIcalSchema,
 } from '../schemas/property';
 import { propertyIcalSchema } from '../schemas/property';
+import { checkAccess } from '@/lib/utils/gatekeeper';
 
 import { revalidateTag } from 'next/cache';
 
@@ -16,7 +17,7 @@ export const addPropertyAction = async (
 ) => {
   const supabase = await createClient();
 
-  // Auth: get the user from supabase session
+  // 1. Auth: get the user from supabase session
   const {
     data: { user },
     error: userError,
@@ -26,6 +27,20 @@ export const addPropertyAction = async (
     return { error: 'Unauthorized', status: 401, success: false };
   }
 
+  // 2. THE GATEKEEPER CHECK (Backend Security)
+  const access = await checkAccess('properties');
+
+  if (!access.allowed) {
+    // If they bypassed the frontend UI somehow, the server blocks them completely
+    return {
+      error: 'Plan limit reached or trial expired.',
+      reason: access.reason,
+      status: 403,
+      success: false,
+    };
+  }
+
+  // 3. Validate form data
   const parsedData = createPropertySchema.safeParse(propertyData);
 
   if (!parsedData.success) {
@@ -38,7 +53,7 @@ export const addPropertyAction = async (
 
   const { title, description, location, rooms } = parsedData.data;
 
-  // Insert into database
+  // 4. Insert into properties database
   const { data, error } = await supabase
     .from('properties')
     .insert({
@@ -56,6 +71,22 @@ export const addPropertyAction = async (
     return { error: error, status: 500, success: false };
   }
 
+  // 5. INCREMENT USAGE COUNTER
+  // We fetch their current count, then add 1 to it.
+  const { data: currentUsage } = await supabase
+    .from('user_usage')
+    .select('properties_count')
+    .eq('user_id', user.id)
+    .single();
+
+  if (currentUsage) {
+    await supabase
+      .from('user_usage')
+      .update({ properties_count: currentUsage.properties_count + 1 })
+      .eq('user_id', user.id);
+  }
+
+  // 6. Refresh UI and return success
   revalidateTag('properties');
   return { property: data, status: 201, success: true };
 };
@@ -149,24 +180,96 @@ export const getPropertiesDataAction = async () => {
   }
 };
 
+// Delete or Archive property action with gatekeeper check
 export const deletePropertyAction = async (id: string) => {
   const supabase = await createClient();
 
-  const response = await supabase.from('properties').delete().eq('id', id);
+  // 1. Auth: get the user from supabase session
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  if (response.error) {
-    return {
-      status: response.status,
-      result: 'fail',
-      error: response.error,
-    };
+  if (userError || !user) {
+    return { error: 'Unauthorized', status: 401, result: 'fail' };
   }
 
+  // 2. CHECK FOR HISTORICAL DATA (Bookings)
+  // We do a fast "HEAD" request just to get the count of bookings, not the actual data
+  const { count: bookingsCount, error: countError } = await supabase
+    .from('bookings')
+    .select('*', { count: 'exact', head: true })
+    .eq('property_id', id);
+
+  if (countError) {
+    return { status: 500, result: 'fail', error: countError };
+  }
+
+  // 3. DECIDE: HARD DELETE OR SOFT ARCHIVE
+  if (bookingsCount === 0) {
+    // --- PATH A: HARD DELETE ---
+    // Safe to wipe completely because there is no financial history.
+    // (Your database cascading rules will automatically delete the iCals, tasks, and template links).
+    const { error: deleteError } = await supabase
+      .from('properties')
+      .delete()
+      .eq('id', id)
+      .eq('owner_id', user.id);
+
+    if (deleteError) return { status: 500, result: 'fail', error: deleteError };
+  } else {
+    // --- PATH B: SOFT DELETE (ARCHIVE) ---
+    // There are bookings, so we must protect the financial data for AADE.
+
+    // A. Change status to archived
+    const { error: archiveError } = await supabase
+      .from('properties')
+      .update({ status: 'archived' })
+      .eq('id', id)
+      .eq('owner_id', user.id);
+
+    if (archiveError)
+      return { status: 500, result: 'fail', error: archiveError };
+
+    // B. Unplug the sync: Hard delete the iCal URLs
+    await supabase.from('property_icals').delete().eq('property_id', id);
+
+    // C. Clean up upcoming clutter: Delete future/pending tasks (keep completed ones)
+    await supabase
+      .from('tasks')
+      .delete()
+      .eq('property_id', id)
+      .in('status', ['pending', 'accepted', 'in_progress']);
+
+    // D. Unlink templates so they stop generating new tasks
+    await supabase
+      .from('property_template_link')
+      .delete()
+      .eq('property_id', id);
+  }
+
+  // 4. DECREMENT USAGE COUNTER (Crucial!)
+  // Whether we Hard Deleted or Archived, this property no longer counts against their active billing limit!
+  const { data: currentUsage } = await supabase
+    .from('user_usage')
+    .select('properties_count')
+    .eq('user_id', user.id)
+    .single();
+
+  if (currentUsage && currentUsage.properties_count > 0) {
+    await supabase
+      .from('user_usage')
+      .update({ properties_count: currentUsage.properties_count - 1 })
+      .eq('user_id', user.id);
+  }
+
+  // 5. Refresh UI
   revalidateTag('properties');
+
   return {
-    status: response.status,
+    status: 200,
     result: 'success',
-    error: response.error,
+    error: null,
   };
 };
 

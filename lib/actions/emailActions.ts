@@ -5,14 +5,13 @@ import { createClient } from '../utils/supabase/server';
 import { getAurinkoAuthUrl as getAuthUrl } from '../aurinko';
 import { performInitialSync } from '../utils/sync/aurinkoEmailSync';
 import { revalidatePath } from 'next/cache';
- const { refreshAurinkoToken } = await import('../utils/refreshAuth');
+const { refreshAurinkoToken } = await import('../utils/refreshAuth');
 
 // import { extractBookingDetails } from '@/lib/ai/gemini';
 
 // ------------------------------------------------------------------
 // 🧠 The Core Logic: Fetch Full Body -> AI Extraction
 import { processEmailForBookings } from '@/lib/utils/emailParsing';
-
 
 export interface EmailSummary {
   id: string;
@@ -28,7 +27,9 @@ export interface EmailSummary {
 /**
  * Get Aurinko OAuth URL for connecting an email account
  */
-export async function getAurinkoAuthUrl(provider: 'Google' | 'Office365' = 'Google'): Promise<{ success: boolean; data?: string; error?: string }> {
+export async function getAurinkoAuthUrl(
+  provider: 'Google' | 'Office365' = 'Google',
+): Promise<{ success: boolean; data?: string; error?: string }> {
   try {
     const authUrl = getAuthUrl(provider);
     return { success: true, data: authUrl };
@@ -38,11 +39,10 @@ export async function getAurinkoAuthUrl(provider: 'Google' | 'Office365' = 'Goog
   }
 }
 
-
 export async function syncEmails(
   accountId: string,
   folder: string = 'inbox',
-  search?: string
+  search?: string,
 ): Promise<{ success: boolean; data?: EmailSummary[]; error?: string }> {
   const supabase = await createClient();
 
@@ -79,9 +79,8 @@ export async function syncEmails(
       {
         headers: { Authorization: `Bearer ${account.access_token}` },
         next: { revalidate: 0 }, // Cache for 60 seconds
-      }
+      },
     );
-
 
     if (!response.ok) {
       console.error('Aurinko Error:', response.statusText);
@@ -89,7 +88,6 @@ export async function syncEmails(
     }
 
     const { records } = await response.json();
-
 
     // 3. Map to our clean interface
     // Aurinko returns nested objects; we flatten them for the UI
@@ -120,7 +118,7 @@ export async function syncEmails(
         is_read: !e.sysLabels.includes('unread'),
         updated_at: new Date().toISOString(),
       })),
-      { onConflict: 'id' }
+      { onConflict: 'id' },
     );
 
     if (upsertError) {
@@ -138,7 +136,7 @@ export async function syncEmails(
 export async function getEmailsFromDB(
   accountId: string,
   folder: string = 'inbox',
-  search?: string
+  search?: string,
 ): Promise<{ success: boolean; data?: EmailSummary[]; error?: string }> {
   try {
     const supabase = await createClient();
@@ -152,12 +150,13 @@ export async function getEmailsFromDB(
       .order('received_at', { ascending: false });
 
     if (search) {
-      query = query.or(`subject.ilike.%${search}%,snippet.ilike.%${search}%,from_json->>name.ilike.%${search}%,from_json->>address.ilike.%${search}%`);
+      query = query.or(
+        `subject.ilike.%${search}%,snippet.ilike.%${search}%,from_json->>name.ilike.%${search}%,from_json->>address.ilike.%${search}%`,
+      );
     }
 
     const { data, error } = await query;
 
-    
     if (error) {
       console.error('DB Fetch Error:', error);
       return { success: false, error: 'Failed to fetch emails from DB' };
@@ -181,7 +180,6 @@ export async function getEmailsFromDB(
       sysLabels: record.is_read ? ['seen'] : ['unread'],
     }));
 
-    
     // Force clean JSON serialization to ensure proper transport to client
     const result = { success: true as const, data: emails };
     return JSON.parse(JSON.stringify(result));
@@ -191,9 +189,8 @@ export async function getEmailsFromDB(
   }
 }
 
-
 // 1. Helper function for delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function syncRecentEmails(accountId: string) {
   const supabase = await createClient();
@@ -238,19 +235,27 @@ export async function syncRecentEmails(accountId: string) {
 
   // --- AUTOMATIC TOKEN REFRESH LOGIC ---
   if (response.status === 401 || response.status === 403) {
-    console.warn(`⚠️ Token expired (Status ${response.status}). Attempting refresh...`);
+    console.warn(
+      `⚠️ Token expired (Status ${response.status}). Attempting refresh...`,
+    );
     try {
       const newToken = await refreshAurinkoToken(accountId);
       console.log('🔄 Token refreshed. Retrying fetch...');
       response = await fetchMessages(newToken);
-      // Update local token variable if needed for subsequent calls? 
+      // Update local token variable if needed for subsequent calls?
       // Actually we need to pass the new token to 'processEmailForBookings' loop below.
-      account.access_token = newToken; 
+      account.access_token = newToken;
     } catch (refreshErr) {
       console.error('🛑 Refresh failed:', refreshErr);
       // Disable account so UI can prompt user
-      await supabase.from('email_accounts').update({ is_active: false }).eq('id', accountId);
-      return { success: false, error: 'Connection expired. Please reconnect your account.' };
+      await supabase
+        .from('email_accounts')
+        .update({ is_active: false })
+        .eq('id', accountId);
+      return {
+        success: false,
+        error: 'Connection expired. Please reconnect your account.',
+      };
     }
   }
   // -------------------------------------
@@ -264,31 +269,32 @@ export async function syncRecentEmails(accountId: string) {
   console.log(`✅ Found ${emailSummaries.length} emails. Processing...`);
 
   const bookingKeywords = [
-    'reservation', 
-    'booking', 
-    'confirmed', 
-    'confirmation', 
-    'cancelled', 
+    'reservation',
+    'booking',
+    'confirmed',
+    'confirmation',
+    'cancelled',
     'cancellation',
-    'simulate', 
-    'simulation'
+    'simulate',
+    'simulation',
   ];
 
   // 3. Process each email individually
   let processedCount = 0;
   for (const summary of emailSummaries) {
-
     // --- AI ENRICHMENT TRIGGER FILTER ---
     const sender = summary.from?.address?.toLowerCase() || '';
     const subject = summary.subject?.toLowerCase() || '';
 
-    const isBookingPlatform = 
+    const isBookingPlatform =
       sender.includes('airbnb.com') ||
       sender.includes('booking.com') ||
       sender.includes('vrbo.com') ||
       sender.includes('expedia.com');
 
-    const hasBookingKeyword = bookingKeywords.some(keyword => subject.includes(keyword));
+    const hasBookingKeyword = bookingKeywords.some((keyword) =>
+      subject.includes(keyword),
+    );
 
     if (!isBookingPlatform && !hasBookingKeyword) {
       console.log(`⏩ Skipping "${summary.subject}" - Not a booking email.`);
@@ -300,52 +306,32 @@ export async function syncRecentEmails(accountId: string) {
     // 4000ms = 4 seconds. This keeps you under ~15 RPM safely.
     // If you still hit limits, increase to 10000 (10s).
     await delay(6000); // Add a delay between emails
-    
+
     // We pass the token we already have to avoid re-fetching it
-    await processEmailForBookings(summary, account.access_token, account.user_id);
+    await processEmailForBookings(
+      summary,
+      account.access_token,
+      account.user_id,
+    );
     processedCount++;
   }
 
   return { success: true, count: processedCount };
 }
 
-
-
-// End of file (removed local function)
-
-export async function getConnectedAccounts() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, error: 'Unauthorized' };
-  }
-
-  const { data: accounts, error } = await supabase
-    .from('email_accounts')
-    .select('id, email_address, provider, created_at')
-    .eq('user_id', user.id);
-
-  if (error) {
-    console.error('Error fetching accounts:', error);
-    return { success: false, error: error.message };
-  }
-
-  return { success: true, data: accounts };
-}
-
 /**
  * Manually trigger a full sync for an account.
  * Revalidates the email dashboard to show changes instantly.
  */
-export async function syncEmailAccount(accountId: string): Promise<{ success: boolean; error?: string }> {
+export async function syncEmailAccount(
+  accountId: string,
+): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
   // 1. Auth Check
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Unauthorized' };
 
   try {
@@ -365,12 +351,12 @@ export async function syncEmailAccount(accountId: string): Promise<{ success: bo
     await performInitialSync(
       account.access_token,
       account.aurinko_account_id,
-      account.id
+      account.id,
     );
 
     // 4. Update UI automatically
     revalidatePath('/dashboard/email');
-    
+
     return { success: true, error: '' };
   } catch (error) {
     console.error('Manual sync failed:', error);
@@ -378,7 +364,7 @@ export async function syncEmailAccount(accountId: string): Promise<{ success: bo
   }
 }
 
-export async function getFolderCounts( prevState: any,accountId: string) {
+export async function getFolderCounts(prevState: any, accountId: string) {
   const supabase = await createClient();
   const folders = ['inbox', 'sent', 'junk', 'trash', 'archive'];
   const counts: Record<string, number> = {
@@ -386,7 +372,7 @@ export async function getFolderCounts( prevState: any,accountId: string) {
     sent: 0,
     junk: 0,
     trash: 0,
-    archive: 0
+    archive: 0,
   };
 
   // We can run these in parallel
@@ -397,13 +383,12 @@ export async function getFolderCounts( prevState: any,accountId: string) {
         .select('*', { count: 'exact', head: true })
         .eq('account_id', accountId)
         .eq('folder', folder);
-      
+
       if (!error && count !== null) {
         counts[folder] = count;
       }
-    })
+    }),
   );
 
   return counts;
 }
-

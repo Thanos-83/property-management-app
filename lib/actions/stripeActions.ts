@@ -2,7 +2,7 @@
 
 import { stripe } from '../utils/stripe/stripeServerClient';
 import { createClient } from '../utils/supabase/server';
-import Stripe from 'stripe';
+// import { createServiceClient } from '../utils/supabase/supabaseDB';
 
 export const fetchStripeProducts = async () => {
   const supabase = await createClient();
@@ -36,79 +36,71 @@ export const fetchStripeProducts = async () => {
 
 export const createStripeSession = async (price: string) => {
   const supabase = await createClient();
-  console.log('Iam here with price ID: ', price);
   const {
     data: { user },
-    // error: error,
   } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
 
-  const { data: supabaseCustomer, error: supabaseCustomerError } =
-    await supabase.from('customers').select().eq('id', user?.id).single();
-
-  console.log('Supabase customer: ', supabaseCustomer);
-  console.log('Supabase customer error: ', supabaseCustomerError);
-
-  if (supabaseCustomer) {
-    console.log('Iam here 1');
-    // supabaseCustomerID = supabaseCustomer?.stripe_customer_id as string;
-    const session: Stripe.Checkout.Session =
-      await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        billing_address_collection: 'auto',
-        customer: supabaseCustomer?.stripe_customer_id,
-        line_items: [
-          {
-            price,
-            quantity: 1,
-          },
-        ],
-        mode: 'subscription',
-        allow_promotion_codes: true,
-        // subscription_data: { trial_from_plan: true, metadata },
-        success_url: `http://localhost:3000/dashboard/pricing/success`,
-        cancel_url: `http://localhost:3000/dashboard/pricing/cancel`,
-        // return_url: `http://localhost:3000/dashboard`,
-      });
-
-    console.log('Iam here 2');
-    console.log('Stripe Session 1: ', session.url);
-
-    return { url: session.url as string };
-  }
-
-  const stripeCustomer = await stripe.customers.create({
-    email: user?.email,
-    name: user?.user_metadata.full_name,
-  });
-
-  const { error } = await supabase
+  const { data: supabaseCustomer } = await supabase
     .from('customers')
-    .insert([{ id: user?.id, stripe_customer_id: stripeCustomer.id }]);
+    .select()
+    .eq('id', user.id)
+    .single();
 
-  if (error) {
-    // do something with the error adding customer in supabase
-    console.log('Error adding customer in supabase: ', error);
+  let customerId = supabaseCustomer?.stripe_customer_id;
+
+  // Create customer if they don't exist
+  if (!customerId) {
+    const stripeCustomer = await stripe.customers.create({
+      email: user.email,
+      name: user.user_metadata?.full_name,
+    });
+    customerId = stripeCustomer.id;
+
+    const { error } = await supabase
+      .from('customers')
+      .insert([{ id: user.id, stripe_customer_id: customerId }]);
+
+    if (error) {
+      console.error('Fatal: Could not save customer to Supabase', error);
+      throw new Error('Failed to setup billing account'); // Halt execution
+    }
   }
 
-  const session: Stripe.Checkout.Session =
-    await stripe.checkout.sessions.create({
+  // Define dynamic URL
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://app.myapp.site:3000';
+
+  // Check if the user already has an active subscription
+  const { data: activeSubscriptions } = await supabase
+    .from('subscriptions')
+    .select('id')
+    .eq('user_id', user.id)
+    .in('status', ['active', 'trialing'])
+    .limit(1);
+
+  const hasActiveSubscription =
+    activeSubscriptions && activeSubscriptions.length > 0;
+
+  if (hasActiveSubscription) {
+    // If they already have a subscription, route them to the Customer Portal to change plans
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${siteUrl}/dashboard/settings/billing`,
+    });
+    return { url: portalSession.url };
+  } else {
+    // If they do not have a subscription (they are on a trial), create a new checkout session
+    const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card', 'paypal', 'link'],
       billing_address_collection: 'auto',
-      customer: stripeCustomer.id,
-      line_items: [
-        {
-          price,
-          quantity: 1,
-        },
-      ],
+      customer: customerId,
+      line_items: [{ price, quantity: 1 }],
       mode: 'subscription',
       allow_promotion_codes: true,
-      // subscription_data: { trial_from_plan: true, metadata },
-      success_url: `http://localhost:3000/dashboard/pricing/success`,
-      cancel_url: `http://localhost:3000/dashboard/pricing/cancel`,
-      //   return_url: `http://localhost:3000/dashboard`,
+      success_url: `${siteUrl}/dashboard/pricing/success`,
+      cancel_url: `${siteUrl}/dashboard/pricing/cancel`,
     });
-  console.log('Stripe Session 2: ', session.url);
-
-  return { url: session.url as string };
+    return { url: session.url as string };
+  }
 };

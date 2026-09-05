@@ -8,8 +8,7 @@ import {
   LayoutDashboard,
   Map,
   PieChart,
-  Send,
-  Mail,
+  // Send,
   // Settings2,
   // BookOpen,
   SquareTerminal,
@@ -17,6 +16,7 @@ import {
   HouseIcon,
   NotebookPen,
   MessagesSquareIcon,
+  SettingsIcon,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/dashboard/nav-main';
@@ -34,17 +34,17 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 
+import {
+  SidebarUsageWidget,
+  UsageMetrics,
+} from '@/components/dashboard/SidebarUsageWidget';
+
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  accounts?: { id: string }[];
   user: User;
+  usageMetrics?: UsageMetrics;
 }
 
-export function AppSidebar({ accounts, user, ...props }: AppSidebarProps) {
-  const defaultAccountId = accounts?.[0]?.id;
-  const emailUrl = defaultAccountId 
-    ? `/dashboard/email?folder=inbox&accountId=${defaultAccountId}` 
-    : '/dashboard/email';
-
+export function AppSidebar({ user, usageMetrics, ...props }: AppSidebarProps) {
   const data = {
     navMain: [
       {
@@ -76,21 +76,12 @@ export function AppSidebar({ accounts, user, ...props }: AppSidebarProps) {
         items: [],
       },
       {
-        title: 'Emails',
-        url: emailUrl, // Dynamic URL
-        icon: Mail,
-        isActive: true,
-        items: [],
-      },
-      {
         title: 'Calendar',
         url: '/dashboard/calendar',
         icon: CalendarRange,
         isActive: true,
         items: [],
       },
-      // ... keep specific complex items or static ones if they don't depend on props
-      // Re-copying the static structure below for completeness
       {
         title: 'Task Management',
         url: '#',
@@ -118,9 +109,9 @@ export function AppSidebar({ accounts, user, ...props }: AppSidebarProps) {
         icon: HouseIcon,
       },
       {
-        title: 'Feedback',
-        url: '#',
-        icon: Send,
+        title: 'Settings',
+        url: '/dashboard/settings/profile',
+        icon: SettingsIcon,
       },
     ],
     projects: [
@@ -162,8 +153,11 @@ export function AppSidebar({ accounts, user, ...props }: AppSidebarProps) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        {/* <NavProjects projects={data.projects} /> */}
-        <NavSecondary items={data.navSecondary} className='mt-auto' />
+        <div className='mt-auto'>
+          {/* <NavProjects projects={data.projects} /> */}
+          <SidebarUsageWidget metrics={usageMetrics} />
+          <NavSecondary items={data.navSecondary} />
+        </div>
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

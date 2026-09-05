@@ -81,8 +81,9 @@ export interface Property {
 
 export interface DetailedProperty extends Property {
   template_links: PropertyTemplateLinks[];
-  bookings: BookingEvent[]; // Type-safe booking array!
+  bookings: BookingEvent[];
   upcoming_bookings_count: number;
+  status?: 'active' | 'inactive' | 'archived';
 }
 
 // Property Template Types

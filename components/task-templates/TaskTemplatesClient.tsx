@@ -5,13 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Plus, ClipboardList } from 'lucide-react';
 import TaskTemplateCard from './TaskTemplateCard';
 import { TaskTemplateSheet } from './TaskTemplateSheet';
+import {
+  TaskTemplateProperty,
+  TaskTemplateTeamMember,
+  TaskTemplatePriority,
+  TaskTemplateTaskType,
+  TaskTemplate,
+} from '@/types/taskTemplatesTypes';
 
 interface TaskTemplatesClientProps {
-  initialTemplates: any[];
-  properties: any[];
-  teamMembers: any[];
-  priorities: any[];
-  taskTypes: any[];
+  initialTemplates: TaskTemplate[];
+  properties: TaskTemplateProperty[];
+  teamMembers: TaskTemplateTeamMember[];
+  priorities: TaskTemplatePriority[];
+  taskTypes: TaskTemplateTaskType[];
+  canAdd: boolean;
+  reason: string;
+  currentTier: string;
 }
 
 export default function TaskTemplatesClient({
@@ -20,11 +30,25 @@ export default function TaskTemplatesClient({
   teamMembers,
   priorities,
   taskTypes,
+  canAdd,
+  reason,
+  currentTier,
 }: TaskTemplatesClientProps) {
   // --- Slide Sheet State ---
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(
+    null,
+  );
   const [sheetMode, setSheetMode] = useState<'create' | 'edit'>('create');
+
+  console.log('Initial template:', initialTemplates);
+  console.log('Properties:', properties);
+  console.log('Team members:', teamMembers);
+  console.log('Priorities:', priorities);
+  console.log('Task types:', taskTypes);
+  console.log('Can add:', canAdd);
+  console.log('Reason:', reason);
+  console.log('Current Tier:', currentTier);
 
   // --- Handlers ---
   const handleOpenCreate = () => {
@@ -33,7 +57,7 @@ export default function TaskTemplatesClient({
     setIsSheetOpen(true);
   };
 
-  const handleOpenEdit = (template: any) => {
+  const handleOpenEdit = (template: TaskTemplate) => {
     setSelectedTemplate(template);
     setSheetMode('edit');
     setIsSheetOpen(true);
@@ -81,7 +105,7 @@ export default function TaskTemplatesClient({
           </div>
         ) : (
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
-            {initialTemplates.map((template: any) => (
+            {initialTemplates.map((template: TaskTemplate) => (
               <TaskTemplateCard
                 key={template.id}
                 template={template}
@@ -102,6 +126,9 @@ export default function TaskTemplatesClient({
         teamMembers={teamMembers}
         priorities={priorities}
         taskTypes={taskTypes}
+        canAdd={canAdd}
+        reason={reason}
+        currentTier={currentTier}
       />
     </div>
   );

@@ -71,16 +71,6 @@ import {
 } from '@/types/propertyTypes';
 
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
   managePropertySchema,
   ManagePropertySchemaType,
 } from '@/lib/schemas/property';
@@ -101,6 +91,7 @@ import { Switch } from '@/components/ui/switch';
 import Link from 'next/link';
 import DeleteIcalAlertDialog from './DeleteIcalAlertDialog';
 import SyncAllButton from './SyncAllButton';
+import DeletePropertyAlertDialog from './DeletePropertyAlertDialog';
 
 const platformOptions = [
   { value: 'Airbnb', label: 'Airbnb', icon: '/icons/airbnb-short.png' },
@@ -684,7 +675,7 @@ export default function ManagePropertySheet({
     try {
       const result = await deletePropertyAction(property.id);
       if (result?.result === 'fail') {
-        toast.error(result?.error?.message || 'Failed to delete property');
+        toast.error('Failed to delete property');
       }
 
       toast.success('Property deleted successfully');
@@ -915,54 +906,13 @@ export default function ManagePropertySheet({
                 {/* --- STICKY FOOTER ONLY FOR DETAILS TAB --- */}
                 <div className='p-4 border-t border-border bg-card shrink-0 flex items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10 relative'>
                   <div className='flex-1'>
-                    <AlertDialog
-                      open={isDeletePropertyOpen}
-                      onOpenChange={setIsDeletePropertyOpen}>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          type='button'
-                          variant='ghost'
-                          className='text-destructive hover:text-destructive hover:bg-destructive/10 font-semibold px-3'>
-                          <Trash2 className='w-4 h-4 mr-2' />
-                          Delete Property
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className='z-[200]'>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Delete {property.title}?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete this property and all
-                            associated calendar links. Tasks and Bookings
-                            associated with it will also be deleted. This action
-                            cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel disabled={isDeletingProperty}>
-                            Cancel
-                          </AlertDialogCancel>
-                          <Button
-                            type='button'
-                            variant='destructive'
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleDeleteProperty();
-                            }}
-                            disabled={isDeletingProperty}>
-                            {isDeletingProperty ? (
-                              <Loader2Icon className='w-4 h-4 mr-2 animate-spin' />
-                            ) : (
-                              <Trash2 className='w-4 h-4 mr-2' />
-                            )}
-                            {isDeletingProperty
-                              ? 'Deleting...'
-                              : 'Delete Property'}
-                          </Button>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <DeletePropertyAlertDialog
+                      propertyName={property.title}
+                      onConfirm={handleDeleteProperty}
+                      isPendingDelete={isDeletingProperty}
+                      isOpen={isDeletePropertyOpen}
+                      setIsOpen={setIsDeletePropertyOpen}
+                    />
                   </div>
 
                   <div className='flex gap-2 shrink-0'>

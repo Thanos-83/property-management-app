@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { stripe } from '@/lib/utils/stripe/stripeServerClient';
 import { headers } from 'next/headers';
 import {
+  handleInvoicePaid,
   handleStripeDeletePriceRecord,
   handleStripeDeleteProductRecord,
   handleStripePriceRecord,
@@ -20,6 +21,7 @@ const relevantEvents = new Set([
   'customer.subscription.created',
   'customer.subscription.updated',
   'customer.subscription.deleted',
+  'invoice.paid',
 ]);
 
 export async function POST(request: Request) {
@@ -90,6 +92,29 @@ export async function POST(request: Request) {
               subscriptionId as string,
               // checkoutSession.customer as string,
               // true
+            );
+          }
+          break;
+        case 'invoice.paid':
+          // 1. Cast it explicitly using the Stripe namespace
+          const invoice = event.data.object as Stripe.Invoice;
+
+          console.log('Invoice paid object: ', invoice);
+          // 2. Safely check if it has a subscription attached
+          const subscriptionId =
+            invoice.parent?.subscription_details?.subscription;
+
+          if (subscriptionId) {
+            console.log(
+              `Processing monthly reset for subscription: ${subscriptionId}`,
+            );
+
+            // 3. Pass the invoice to your admin task handler
+            await handleInvoicePaid(invoice);
+          } else {
+            // If there's no subscription (e.g., a one-time purchase invoice), we ignore it
+            console.log(
+              'Invoice paid, but it was not for a subscription. Ignoring.',
             );
           }
           break;

@@ -1,51 +1,94 @@
 'use server';
-import { taskTemplateSchema, TaskTemplateSchemaType } from "../schemas/task-template";
-import { createClient } from "@/lib/utils/supabase/server";
-import { UpdateTemplateParams } from "@/types/taskTemplatesTypes";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-
-
+import {
+  taskTemplateSchema,
+  TaskTemplateSchemaType,
+} from '../schemas/task-template';
+import { createClient } from '@/lib/utils/supabase/server';
+import { UpdateTemplateParams } from '@/types/taskTemplatesTypes';
+import { revalidatePath } from 'next/cache';
+import { checkAccess } from '@/lib/utils/gatekeeper';
 
 // Create task template action
-export const createTaskTemplateAction = async (taskData: TaskTemplateSchemaType) => {
+export const createTaskTemplateAction = async (
+  taskData: TaskTemplateSchemaType,
+) => {
   const parsed = taskTemplateSchema.safeParse(taskData);
   if (!parsed.success) {
-    return { success: false, error: parsed.error, status: 400, data: null };
+    return {
+      success: false,
+      error: 'Invalid data format',
+      status: 400,
+      data: null,
+    };
   }
 
   try {
     const supabase = await createClient();
 
-    const {data: {user}} = await supabase.auth.getUser();
+    // 1. Auth check
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
-      return { success: false, error: 'User not found', status: 401, data: null };
+      return {
+        success: false,
+        error: 'User not found',
+        status: 401,
+        data: null,
+      };
     }
+
+    // 2. THE GATEKEEPER CHECK (Backend Security)
+    const access = await checkAccess('task_templates');
+    if (!access.allowed) {
+      return {
+        success: false,
+        // We translate the internal reason into a friendly string for the frontend toast
+        error:
+          access.reason === 'trial_expired'
+            ? 'Your 14-day trial has expired. Please upgrade.'
+            : 'You have reached the template limit for your plan.',
+        status: 403,
+        data: null,
+      };
+    }
+
     const { checklist, ...cleanTaskData } = parsed.data;
 
     // ---------------------------------------------------------
     // FORMAT DATA BEFORE INSERT
     // ---------------------------------------------------------
-    
+
     // 1. Translate the task_type UUID back to a text string for the database
     let finalTaskType = cleanTaskData.task_type;
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanTaskData.task_type);
-    
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        cleanTaskData.task_type,
+      );
+
     if (isUUID) {
       const { data: typeData } = await supabase
         .from('task_types')
         .select('name')
         .eq('id', cleanTaskData.task_type)
         .single();
-        
+
       if (typeData) {
         finalTaskType = typeData.name;
       }
     }
 
     // 2. Handle 'unassigned' and empty fields properly
-    const safePriorityId = (cleanTaskData.priority === 'undefined' || !cleanTaskData.priority) ? null : cleanTaskData.priority;
-    const safeAssigneeId = (cleanTaskData.team_member_id === 'unassigned' || !cleanTaskData.team_member_id) ? null : cleanTaskData.team_member_id;
+    const safePriorityId =
+      cleanTaskData.priority === 'undefined' || !cleanTaskData.priority
+        ? null
+        : cleanTaskData.priority;
+    const safeAssigneeId =
+      cleanTaskData.team_member_id === 'unassigned' ||
+      !cleanTaskData.team_member_id
+        ? null
+        : cleanTaskData.team_member_id;
 
     // ---------------------------------------------------------
     // Step A: Insert the Parent Template
@@ -59,7 +102,7 @@ export const createTaskTemplateAction = async (taskData: TaskTemplateSchemaType)
         description_notes: cleanTaskData.description_notes,
         default_priority_id: safePriorityId,
         default_team_member_id: safeAssigneeId,
-        is_active: cleanTaskData.is_active ?? true // Take from form, default to true
+        is_active: cleanTaskData.is_active ?? true, // Take from form, default to true
       })
       .select('id')
       .single();
@@ -74,7 +117,7 @@ export const createTaskTemplateAction = async (taskData: TaskTemplateSchemaType)
       const checklistRows = checklist.map((item) => ({
         template_id: templateId,
         description: item.description,
-        sort_order: item.order 
+        sort_order: item.order,
       }));
 
       const { error: itemsError } = await supabase
@@ -91,8 +134,8 @@ export const createTaskTemplateAction = async (taskData: TaskTemplateSchemaType)
       const linkRows = cleanTaskData.property_ids.map((propId) => ({
         template_id: templateId,
         property_id: propId,
-        offset_minutes: cleanTaskData.offset_minutes,
-        is_active: true
+        offset_minutes: cleanTaskData.offset_minutes, // Successfully inserted here!
+        is_active: true,
       }));
 
       const { error: linksError } = await supabase
@@ -100,23 +143,46 @@ export const createTaskTemplateAction = async (taskData: TaskTemplateSchemaType)
         .insert(linkRows);
 
       if (linksError) throw new Error(`Linking Error: ${linksError.message}`);
-    }    
-    
+    }
+
+    // ---------------------------------------------------------
+    // Step D: INCREMENT USAGE COUNTER
+    // ---------------------------------------------------------
+    const { data: currentUsage } = await supabase
+      .from('user_usage')
+      .select('task_templates_count')
+      .eq('user_id', user.id)
+      .single();
+
+    if (currentUsage) {
+      await supabase
+        .from('user_usage')
+        .update({ task_templates_count: currentUsage.task_templates_count + 1 })
+        .eq('user_id', user.id);
+    }
+
     // Refresh the UI
     revalidatePath('/dashboard/task-templates');
+
     return { success: true, data: templateId };
-    
   } catch (error: any) {
     console.error('Error adding task:', error);
-    return { success: false, error: error.message || 'Error adding task', status: 500, data: null };
+    return {
+      success: false,
+      error: error.message || 'Error adding task',
+      status: 500,
+      data: null,
+    };
   }
 };
 
 // Update task template action
 export async function updateTaskTemplateAction(params: UpdateTemplateParams) {
   const supabase = await createClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return { success: false, error: 'Unauthorized' };
   }
@@ -125,73 +191,82 @@ export async function updateTaskTemplateAction(params: UpdateTemplateParams) {
     // ---------------------------------------------------------
     // Step A: Format Data & Update Template Header (Parent)
     // ---------------------------------------------------------
-    
+
     let finalTaskType = params.task_type;
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.task_type);
-    
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        params.task_type,
+      );
+
     if (isUUID) {
       const { data: typeData } = await supabase
         .from('task_types')
         .select('name')
         .eq('id', params.task_type)
         .single();
-        
+
       if (typeData) {
         finalTaskType = typeData.name;
       }
     }
 
-    const safePriorityId = (params.priority === 'undefined' || params.priority === undefined || params.priority === '') 
-      ? null 
-      : params.priority;
-      
-    const safeAssigneeId = (params.team_member_id === 'unassigned' || params.team_member_id === 'undefined' || params.team_member_id === undefined || params.team_member_id === '') 
-      ? null 
-      : params.team_member_id;
+    const safePriorityId =
+      params.priority === 'undefined' ||
+      params.priority === undefined ||
+      params.priority === ''
+        ? null
+        : params.priority;
+
+    const safeAssigneeId =
+      params.team_member_id === 'unassigned' ||
+      params.team_member_id === 'undefined' ||
+      params.team_member_id === undefined ||
+      params.team_member_id === ''
+        ? null
+        : params.team_member_id;
 
     const { error: tmplError } = await supabase
       .from('task_templates')
       .update({
         name: params.name,
-        task_type: finalTaskType, 
+        task_type: finalTaskType,
         description_notes: params.description_notes,
         default_priority_id: safePriorityId,
         default_team_member_id: safeAssigneeId,
         is_active: params.is_active,
       })
       .eq('id', params.id)
-      .eq('host_id', user.id); 
+      .eq('host_id', user.id);
 
     if (tmplError) throw new Error(`Template Error: ${tmplError.message}`);
 
     // ---------------------------------------------------------
     // Step B: Manage Checklist Items (The Recipe)
     // ---------------------------------------------------------
-    
+
     const { data: existingItems } = await supabase
       .from('task_template_items')
       .select('id')
       .eq('template_id', params.id);
 
-    const existingIds = new Set(existingItems?.map(item => item.id) || []);
-    const incomingIds = new Set(params.checklist.map(item => item.id).filter(Boolean));
+    const existingIds = new Set(existingItems?.map((item) => item.id) || []);
+    const incomingIds = new Set(
+      params.checklist.map((item) => item.id).filter(Boolean),
+    );
 
-    const idsToDelete = [...existingIds].filter(id => !incomingIds.has(id));
-    
+    const idsToDelete = [...existingIds].filter((id) => !incomingIds.has(id));
+
     if (idsToDelete.length > 0) {
-      await supabase
-        .from('task_template_items')
-        .delete()
-        .in('id', idsToDelete);
+      await supabase.from('task_template_items').delete().in('id', idsToDelete);
     }
 
     if (params.checklist.length > 0) {
-      const itemsToUpsert = params.checklist.map(item => {
+      const itemsToUpsert = params.checklist.map((item) => {
         const row: any = {
           id: item.id || crypto.randomUUID(),
           template_id: params.id,
           description: item.description,
-          sort_order: item.order // Mapping 'order' from form to 'sort_order' in DB
+          sort_order: item.order, // Mapping 'order' from form to 'sort_order' in DB
         };
         return row;
       });
@@ -200,23 +275,28 @@ export async function updateTaskTemplateAction(params: UpdateTemplateParams) {
         .from('task_template_items')
         .upsert(itemsToUpsert, { onConflict: 'id' });
 
-      if (itemsError) throw new Error(`Updating Checklist Error: ${itemsError.message}`);
+      if (itemsError)
+        throw new Error(`Updating Checklist Error: ${itemsError.message}`);
     }
 
     // ---------------------------------------------------------
     // Step C: Manage Property Links (The Automations)
     // ---------------------------------------------------------
-    
+
     const { data: existingLinks } = await supabase
       .from('property_template_link')
       .select('id, property_id')
       .eq('template_id', params.id);
 
-    const existingPropIds = new Set(existingLinks?.map(link => link.property_id) || []);
+    const existingPropIds = new Set(
+      existingLinks?.map((link) => link.property_id) || [],
+    );
     const incomingPropIds = new Set(params.property_ids);
 
-    const propIdsToDelete = [...existingPropIds].filter(id => !incomingPropIds.has(id));
-    
+    const propIdsToDelete = [...existingPropIds].filter(
+      (id) => !incomingPropIds.has(id),
+    );
+
     if (propIdsToDelete.length > 0) {
       await supabase
         .from('property_template_link')
@@ -227,26 +307,29 @@ export async function updateTaskTemplateAction(params: UpdateTemplateParams) {
 
     if (params.property_ids.length > 0) {
       // FIX: We omit the 'id' completely and rely on the composite unique constraint!
-      const linksToUpsert = params.property_ids.map(propId => ({
+      const linksToUpsert = params.property_ids.map((propId) => ({
         template_id: params.id,
         property_id: propId,
         offset_minutes: params.offset_minutes,
-        is_active: true
+        is_active: true,
       }));
 
       const { error: linksError } = await supabase
         .from('property_template_link')
         .upsert(linksToUpsert, { onConflict: 'property_id,template_id' });
 
-      if (linksError) throw new Error(`Property Linking Error: ${linksError.message}`);
+      if (linksError)
+        throw new Error(`Property Linking Error: ${linksError.message}`);
     }
 
     // revalidatePath('/dashboard/task-templates');
     return { success: true };
-
   } catch (error: any) {
     console.error('Update Template Failed:', error);
-    return { success: false, error: error.message || 'Failed to update template' };
+    return {
+      success: false,
+      error: error.message || 'Failed to update template',
+    };
   }
 }
 
@@ -254,19 +337,21 @@ export async function updateTaskTemplateAction(params: UpdateTemplateParams) {
 export const getTaskTemplatesAction = async () => {
   try {
     const supabase = await createClient();
-    
-    // We use Supabase's relation syntax to fetch the associated IDs 
+
+    // We use Supabase's relation syntax to fetch the associated IDs
     // so we can count how many checklist items and linked properties exist.
     // (We order by created_at to keep the list consistent)
     const { data: templates, error } = await supabase
       .from('task_templates')
-      .select(`
+      .select(
+        `
         *,
         checklist_items:task_template_items(id, description, sort_order),
         linked_properties:property_template_link(id, property_id, offset_minutes, is_active),
         team_member:team_members(first_name, last_name,avatar_url),
         priority:task_priorities(priority, priority_color)
-      `)
+      `,
+      )
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -277,8 +362,11 @@ export const getTaskTemplatesAction = async () => {
       // Calculate the lengths of the returned arrays to get our counts
       checklistCount: template.checklist_items?.length || 0,
       propertiesCount: template.linked_properties?.length || 0,
-      checklist_items: template.checklist_items?.sort((a: any, b: any) => a.sort_order - b.sort_order) || [],
-      linked_properties: template.linked_properties || []
+      checklist_items:
+        template.checklist_items?.sort(
+          (a: any, b: any) => a.sort_order - b.sort_order,
+        ) || [],
+      linked_properties: template.linked_properties || [],
     }));
 
     return formattedTemplates;
@@ -293,11 +381,14 @@ export const deleteTaskTemplateAction = async (templateId: string) => {
   try {
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, error: 'Unauthorized' };
     }
 
+    // 1. Delete the template
     const { error } = await supabase
       .from('task_templates')
       .delete()
@@ -308,12 +399,30 @@ export const deleteTaskTemplateAction = async (templateId: string) => {
       throw new Error(`Delete Error: ${error.message}`);
     }
 
-    // Refresh the UI
-    // revalidatePath('/dashboard/task-templates');
+    // 2. DECREMENT USAGE COUNTER
+    const { data: currentUsage } = await supabase
+      .from('user_usage')
+      .select('task_templates_count')
+      .eq('user_id', user.id)
+      .single();
+
+    // Check if it's greater than 0 to ensure we never get negative counts
+    if (currentUsage && currentUsage.task_templates_count > 0) {
+      await supabase
+        .from('user_usage')
+        .update({ task_templates_count: currentUsage.task_templates_count - 1 })
+        .eq('user_id', user.id);
+    }
+
+    // 3. Refresh the UI to instantly unlock the "Add Template" button
+    revalidatePath('/dashboard/task-templates');
+
     return { success: true, error: null };
-    
   } catch (error: any) {
     console.error('Error deleting task template:', error);
-    return { success: false, error: error.message || 'Error deleting task template' };
+    return {
+      success: false,
+      error: error.message || 'Error deleting task template',
+    };
   }
 };

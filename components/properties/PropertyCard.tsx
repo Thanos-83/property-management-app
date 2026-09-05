@@ -13,6 +13,7 @@ import {
   CalendarDays,
   CheckCircle2,
   AlertCircle,
+  Lock,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -62,7 +63,8 @@ export default function PropertyCard({
   const [isDeleting, startDeletingTransition] = useTransition();
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
 
-  // Extract unique platforms so we don't show 3 Airbnb icons if they have 3 Airbnb calendars
+  const isInactive = property.status === 'inactive';
+
   const uniquePlatforms = Array.from(
     new Set(
       property.property_icals?.map((ical: PropertyIcal) => {
@@ -75,7 +77,6 @@ export default function PropertyCard({
   const hiddenPlatforms = uniquePlatforms.slice(MAX_VISIBLE_PLATFORMS);
   const hiddenCount = uniquePlatforms.length - MAX_VISIBLE_PLATFORMS;
 
-  // --- DERIVE GLOBAL SYNC HEALTH FOR THIS PROPERTY ---
   const icals = property.property_icals || [];
   const hasErrors = icals.some(
     (ical: PropertyIcal) => ical.sync_status === 'error',
@@ -83,7 +84,6 @@ export default function PropertyCard({
   const isPending = icals.some(
     (ical: PropertyIcal) => ical.sync_status === 'pending',
   );
-  // If no iCals, it's neutral. Otherwise, error trumps pending, pending trumps healthy.
   const globalSyncStatus =
     icals.length === 0
       ? 'none'
@@ -106,7 +106,6 @@ export default function PropertyCard({
 
       const result = await response.json();
 
-      // --- SMART PARTIAL SUCCESS LOGIC ---
       if (result.summary.failedSyncs === 0) {
         toast.success(
           `Sync completed! ${result.summary.totalNewBookings} new bookings, ${result.summary.totalUpdatedBookings} updated`,
@@ -123,7 +122,7 @@ export default function PropertyCard({
       toast.error('Failed to sync property');
     } finally {
       setSyncLoading(false);
-      setIsActionsDropdownOpen(false); // Manually close the dropdown ONLY when the sync finishes
+      setIsActionsDropdownOpen(false);
       router.refresh();
     }
   };
@@ -132,17 +131,31 @@ export default function PropertyCard({
     startDeletingTransition(async () => {
       const result = await deletePropertyAction(propertyId);
       if (result?.result === 'success') {
-        setTimeout(() => toast.success('Property deleted successfully'), 500);
+        setTimeout(() => toast.success('Property archived successfully'), 500);
       } else if (result?.result === 'fail') {
-        toast.error(result?.error?.message || 'Failed to delete property');
+        toast.error('Failed to delete property');
       }
     });
   };
 
   return (
-    <div className='group flex flex-col bg-white rounded-md border border-border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden relative'>
-      {/* --- HEADER IMAGE AREA --- */}
+    <div
+      className={`group flex flex-col bg-white rounded-md border shadow-sm transition-all duration-200 overflow-hidden relative ${
+        isInactive
+          ? 'opacity-75 grayscale-[0.3] border-destructive/30'
+          : 'border-border hover:shadow-md'
+      }`}>
       <div className='relative h-48 bg-gradient-to-br from-primary/10 via-primary/5 to-muted flex items-center justify-center border-b border-border'>
+        {isInactive && (
+          <div className='absolute inset-0 bg-background/40 backdrop-blur-[2px] z-10 flex items-center justify-center'>
+            <Badge
+              variant='destructive'
+              className='text-sm shadow-md flex items-center gap-1.5 px-3 py-1'>
+              <Lock className='w-4 h-4' /> Over Limit
+            </Badge>
+          </div>
+        )}
+
         {property.image_url ? (
           <Image
             src={property.image_url}
@@ -154,8 +167,7 @@ export default function PropertyCard({
           <Building2 className='w-12 h-12 text-primary/30' />
         )}
 
-        {/* Absolute Action Menu */}
-        <div className='absolute top-3 right-3'>
+        <div className='absolute top-3 right-3 z-20'>
           <DropdownMenu
             open={isActionsDropdownOpen}
             onOpenChange={setIsActionsDropdownOpen}>
@@ -170,13 +182,12 @@ export default function PropertyCard({
             <DropdownMenuContent
               align='end'
               className='w-[260px] z-[100] rounded-md shadow-lg'>
-              {/* THE FIX: Use onSelect with e.preventDefault() to stop auto-closing */}
               <DropdownMenuItem
                 onSelect={(e) => {
                   e.preventDefault();
                   handleSyncIcals();
                 }}
-                disabled={isSyncLoading}
+                disabled={isSyncLoading || isInactive}
                 className='cursor-pointer font-medium'>
                 {isSyncLoading ? (
                   <Loader2Icon className='mr-2 h-4 w-4 animate-spin text-primary' />
@@ -205,7 +216,6 @@ export default function PropertyCard({
         </div>
       </div>
 
-      {/* --- CARD BODY --- */}
       <div className='p-3 flex flex-col flex-1'>
         <h3
           className='font-extrabold text-lg text-foreground truncate mb-2'
@@ -228,7 +238,6 @@ export default function PropertyCard({
           </div>
         </div>
 
-        {/* --- NEW: OPERATIONAL STATS --- */}
         <div className='grid grid-cols-2 gap-2 mb-1 bg-muted/30 p-2 rounded-md border border-border/50'>
           <div className='flex flex-col gap-0.5'>
             <span className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1'>
@@ -247,7 +256,12 @@ export default function PropertyCard({
               Sync Status
             </span>
             <span className='text-xs font-bold flex items-center gap-1 mt-0.5'>
-              {globalSyncStatus === 'error' ? (
+              {isInactive ? (
+                <>
+                  <Lock className='w-3.5 h-3.5 text-muted-foreground' />
+                  <span className='text-muted-foreground'>Paused</span>
+                </>
+              ) : globalSyncStatus === 'error' ? (
                 <>
                   <AlertCircle className='w-3.5 h-3.5 text-destructive' />{' '}
                   <span className='text-destructive'>Action Needed</span>
@@ -259,8 +273,8 @@ export default function PropertyCard({
                 </>
               ) : globalSyncStatus === 'healthy' ? (
                 <>
-                  <CheckCircle2 className='w-3.5 h-3.5 text-status-completed' />{' '}
-                  <span className='text-status-completed'>Healthy</span>
+                  <CheckCircle2 className='w-3.5 h-3.5 text-green-600' />{' '}
+                  <span className='text-green-600'>Healthy</span>
                 </>
               ) : (
                 <span className='text-muted-foreground'>No Calendars</span>
@@ -269,7 +283,6 @@ export default function PropertyCard({
           </div>
         </div>
 
-        {/* --- FOOTER: CHANNELS & MANAGE --- */}
         <div className='mt-1 pt-2 border-t border-border flex items-center justify-between'>
           <div className='flex items-center gap-1.5'>
             {uniquePlatforms.length > 0 ? (
@@ -289,7 +302,13 @@ export default function PropertyCard({
                       {platform.platform.charAt(0).toUpperCase()}
                     </AvatarFallback>
                     <AvatarBadge
-                      className={`!w-2 !h-2 ring-1 top-0 left-0 ${platform.statusHealth === 'success' ? 'bg-green-600 dark:bg-green-800' : platform.statusHealth === 'pending' ? 'bg-muted-foreground dark:bg-muted-foreground' : 'bg-red-600 dark:bg-red-800'}`}
+                      className={`!w-2 !h-2 ring-1 top-0 left-0 ${
+                        platform.statusHealth === 'success'
+                          ? 'bg-green-600 dark:bg-green-800'
+                          : platform.statusHealth === 'pending'
+                            ? 'bg-muted-foreground dark:bg-muted-foreground'
+                            : 'bg-red-600 dark:bg-red-800'
+                      }`}
                     />
                   </Avatar>
                 ))}
@@ -320,7 +339,13 @@ export default function PropertyCard({
                                 {p.platform.charAt(0).toUpperCase()}
                               </AvatarFallback>
                               <AvatarBadge
-                                className={`!w-2 !h-2 ring-1 top-0 left-0 ${p.statusHealth === 'success' ? 'bg-green-600 dark:bg-green-800' : p.statusHealth === 'pending' ? 'bg-muted-foreground dark:bg-muted-foreground' : 'bg-red-600 dark:bg-red-800'}`}
+                                className={`!w-2 !h-2 ring-1 top-0 left-0 ${
+                                  p.statusHealth === 'success'
+                                    ? 'bg-green-600 dark:bg-green-800'
+                                    : p.statusHealth === 'pending'
+                                      ? 'bg-muted-foreground dark:bg-muted-foreground'
+                                      : 'bg-red-600 dark:bg-red-800'
+                                }`}
                               />
                             </Avatar>
                           ))}
@@ -341,10 +366,11 @@ export default function PropertyCard({
 
           <Button
             onClick={onManage}
-            variant='default'
+            disabled={isInactive}
+            variant={isInactive ? 'secondary' : 'default'}
             size='sm'
             className='h-8 px-4 text-xs font-bold rounded-lg shadow-sm'>
-            Manage
+            {isInactive ? 'Locked' : 'Manage'}
           </Button>
         </div>
       </div>

@@ -14,50 +14,119 @@ import { createClient } from '@/lib/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 
-
-import { getConnectedAccounts } from '@/lib/actions/emailActions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-// ... imports
+// 1. Import Gatekeeper (Removed PLAN_LIMITS import)
+import { checkAccess } from '@/lib/utils/gatekeeper';
+
+// Imports for the Paywall
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { Clock } from 'lucide-react';
 
 export default async function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = createClient();
+  // Await the createClient promise properly
+  const supabase = await createClient();
   const {
     data: { user },
-  } = await (await supabase).auth.getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return redirect('/auth/login');
   }
 
-  const { data: accounts } = await getConnectedAccounts();
+  // 2. Fetch Usage Data for the Widget
+  const { data: usage } = await supabase
+    .from('user_usage')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
 
-  const headerList =await headers();
-  const pathname =  headerList.get("x-current-path");
+  // 3. Determine Tier and Limits via the Gatekeeper
+  const accessCheck = await checkAccess('properties');
+  const currentTier = accessCheck.currentTier;
 
+  // SECURE DYNAMIC LIMIT: The limit is now fetched from Stripe metadata!
+  const propertiesLimit = accessCheck.limits.properties;
+
+  // 4. Calculate Trial Days Left
+  let daysLeft = 0;
+  if (currentTier === 'trial' && usage?.trial_start) {
+    const trialStart = new Date(usage.trial_start);
+    const now = new Date();
+    const daysElapsed =
+      (now.getTime() - trialStart.getTime()) / (1000 * 3600 * 24);
+    // Ensure we don't show negative days if they are slightly over 14
+    daysLeft = Math.max(0, 14 - Math.floor(daysElapsed));
+  }
+
+  // 5. Construct the Usage Metrics Object
+  const usageMetrics = usage
+    ? {
+        tier: currentTier,
+        propertiesCount: usage.properties_count || 0,
+        propertiesLimit: propertiesLimit,
+        daysLeft: daysLeft,
+      }
+    : undefined;
+
+  const headerList = await headers();
+  const pathname = headerList.get('x-current-path');
+
+  // 6. THE PAYWALL INTERCEPTOR
+  const isTrialExpired = currentTier === 'trial' && daysLeft <= 0;
+  // const isExemptRoute =
+  //   pathname === '/dashboard/pricing' ||
+  //   pathname === '/dashboard/settings/billing' ||
+  //   pathname === '/dashboard/settings';
+  console.log('isTrialExpired', isTrialExpired);
+
+  if (isTrialExpired) {
+    return (
+      <html lang='en'>
+        <body className='bg-slate-50 flex items-center justify-center min-h-screen'>
+          <div className='max-w-md text-center p-8 bg-white rounded-xl shadow-lg border border-border'>
+            <div className='bg-amber-100 text-amber-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6'>
+              <Clock className='w-8 h-8' />
+            </div>
+            <h2 className='text-2xl font-bold text-slate-900 mb-2'>
+              Trial Expired
+            </h2>
+            <p className='text-slate-500 mb-8'>
+              Your 14-day trial has come to an end. To regain access to your
+              dashboard and listings, please select a plan.
+            </p>
+            <Button asChild className='w-full font-bold h-12 text-base'>
+              <Link href='/dashboard/pricing'>View Pricing Plans</Link>
+            </Button>
+          </div>
+        </body>
+      </html>
+    );
+  }
+
+  // 7. RENDER NORMAL DASHBOARD
   return (
     <html lang='en'>
       <body suppressHydrationWarning>
         <NuqsAdapter>
-          {/* <div className=''> */}
-            <SidebarProvider className=''>
-              <AppSidebar accounts={accounts || []} user={user} />
-              <SidebarInset className='h-screen overflow-hidden !rounded-none !m-0 '>
-                {!pathname?.split("/").includes("email") && 
-                <DashboardHeader />}
-                <main className=''>
-                  <ScrollArea className='h-[calc(100dvh-64px)]'>
-                    {children}
-                  </ScrollArea>
-                </main>
-              </SidebarInset>
-            </SidebarProvider>
-            <Toaster richColors position='top-right' />
-          {/* </div> */}
+          <SidebarProvider className=''>
+            {/* Pass the metrics into the sidebar */}
+            <AppSidebar user={user} usageMetrics={usageMetrics} />
+            <SidebarInset className='h-screen overflow-hidden !rounded-none !m-0 '>
+              {!pathname?.split('/').includes('email') && <DashboardHeader />}
+              <main className=''>
+                <ScrollArea className='h-[calc(100dvh-64px)]'>
+                  {children}
+                </ScrollArea>
+              </main>
+            </SidebarInset>
+          </SidebarProvider>
+          {/* Removed duplicate Toaster */}
           <Toaster richColors position='top-right' />
         </NuqsAdapter>
       </body>

@@ -5,23 +5,30 @@ import { createApiClient } from '@/lib/utils/supabase/api';
 import { createPropertySchema } from '@/lib/schemas/property';
 import { revalidateTag } from 'next/cache';
 import { BookingEvent } from '@/types/bookingTypes';
+import { checkAccess } from '@/lib/utils/gatekeeper';
 
 export async function POST(req: Request) {
   const supabase = await createApiClient(req);
 
-  // Auth: get the user from supabase session
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
 
-  console.log('User info in server POST API route: ', user);
-
   if (userError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Parse and validate request body
+  // --- 2. BACKEND BILLING CHECK ---
+  const access = await checkAccess('properties');
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: 'Limit reached', reason: access.reason },
+      { status: 403 }, // 403 Forbidden is the correct status for billing locks
+    );
+  }
+  // ---------------------------------
+
   let jsonBody;
   try {
     jsonBody = await req.json();
@@ -29,7 +36,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  console.log('JSON Body: ', jsonBody);
   const parsed = createPropertySchema.safeParse(jsonBody);
   if (!parsed.success) {
     return NextResponse.json(
@@ -40,7 +46,7 @@ export async function POST(req: Request) {
 
   const { title, description, location, rooms } = parsed.data;
 
-  // Insert into database
+  // Insert into database (it will naturally default to status: 'active')
   const { data, error } = await supabase
     .from('properties')
     .insert({
@@ -54,12 +60,10 @@ export async function POST(req: Request) {
     .single();
 
   if (error) {
-    console.log('Error: ', error);
     return NextResponse.json({ error: error }, { status: 500 });
   }
 
   revalidateTag('properties');
-  // revalidatePath('/dashboard/listings', 'page');
   return NextResponse.json({ property: data }, { status: 201 });
 }
 
@@ -96,6 +100,8 @@ export async function GET(request: Request) {
       `,
       )
       .eq('owner_id', user?.id)
+      .neq('status', 'archived')
+      .order('status', { ascending: true })
       .order('created_at', { ascending: true });
 
     if (error) {

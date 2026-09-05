@@ -43,7 +43,7 @@ export async function handleStripeDeleteProductRecord(productId: string) {
     console.log('Error deleting product from the supabase: ', error);
   }
   console.log(
-    `Product with id: ${productId} deleted successfuly from the supabase`
+    `Product with id: ${productId} deleted successfuly from the supabase`,
   );
 }
 
@@ -85,14 +85,16 @@ export async function handleStripeDeletePriceRecord(priceId: string) {
     console.log('Error deleting price from the supabase: ', error);
   }
   console.log(
-    `Price with id: ${priceId} deleted successfuly from the supabase`
+    `Price with id: ${priceId} deleted successfuly from the supabase`,
   );
 }
 
 export async function handleSubscriptionStatusChange(subscriptionId: string) {
-  const supabase = await createServiceClient();
+  const supabase = createServiceClient();
 
-  const subscriptionData = await stripe.subscriptions.retrieve(subscriptionId);
+  const subscriptionData = await stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ['items.data.price.product'],
+  });
 
   const { data: customerData, error: customerError } = await supabase
     .from('customers')
@@ -101,6 +103,7 @@ export async function handleSubscriptionStatusChange(subscriptionId: string) {
     .single();
 
   console.log('Customer data in stripeActions: ', customerData);
+  console.log('Subscription data in stripeActions: ', subscriptionData);
 
   if (customerError) {
     console.error('Error fetching customer from database:', customerError);
@@ -112,39 +115,68 @@ export async function handleSubscriptionStatusChange(subscriptionId: string) {
     user_id: customerData.id,
     status: subscriptionData.status,
     metadata: subscriptionData.metadata,
-    price_id: subscriptionData.items.data[0].price.id,
-    quantity: subscriptionData.items.data[0].quantity,
-    cancel_at_period_end: subscriptionData.cancel_at_period_end
-      ? new Date(
-          Number(subscriptionData.cancel_at_period_end) * 1000
-        ).toISOString()
-      : null,
+    price_id: subscriptionData.items.data[0]?.price.id,
+    quantity: subscriptionData.items.data[0]?.quantity,
+    cancel_at_period_end: subscriptionData.cancel_at_period_end,
+
     created: subscriptionData.created
-      ? new Date(Number(subscriptionData.created) * 1000).toISOString()
-      : null,
-    current_period_start: subscriptionData.items.data[0].current_period_start
+      ? new Date(subscriptionData.created * 1000).toISOString()
+      : undefined,
+
+    // Reverted to your original logic: fetching dates from items.data[0]
+    current_period_start: subscriptionData.items.data[0]?.current_period_start
       ? new Date(
-          Number(subscriptionData.items.data[0].current_period_start) * 1000
+          subscriptionData.items.data[0].current_period_start * 1000,
         ).toISOString()
-      : null,
-    current_period_end: subscriptionData.items.data[0].current_period_end
+      : undefined,
+
+    current_period_end: subscriptionData.items.data[0]?.current_period_end
       ? new Date(
-          Number(subscriptionData.items.data[0].current_period_end) * 1000
+          subscriptionData.items.data[0].current_period_end * 1000,
         ).toISOString()
-      : null,
+      : undefined,
+
+    // These properties still remain on the root subscription object
     ended_at: subscriptionData.ended_at
-      ? new Date(Number(subscriptionData.ended_at) * 1000).toISOString()
-      : null,
-    canceled_at: subscriptionData.cancel_at
-      ? new Date(Number(subscriptionData.cancel_at) * 1000).toISOString()
-      : null,
+      ? new Date(subscriptionData.ended_at * 1000).toISOString()
+      : undefined,
+    cancel_at: subscriptionData.cancel_at
+      ? new Date(subscriptionData.cancel_at * 1000).toISOString()
+      : undefined,
+    canceled_at: subscriptionData.canceled_at
+      ? new Date(subscriptionData.canceled_at * 1000).toISOString()
+      : undefined,
     trial_start: subscriptionData.trial_start
-      ? new Date(Number(subscriptionData.trial_start) * 1000).toISOString()
-      : null,
+      ? new Date(subscriptionData.trial_start * 1000).toISOString()
+      : undefined,
     trial_end: subscriptionData.trial_end
-      ? new Date(Number(subscriptionData.trial_end) * 1000).toISOString()
-      : null,
+      ? new Date(subscriptionData.trial_end * 1000).toISOString()
+      : undefined,
   };
+
+  // Strip explicit undefined values to ensure Supabase falls back to Postgres defaults
+  Object.keys(supabaseSubscriptionData).forEach((key) => {
+    if (
+      supabaseSubscriptionData[key as keyof typeof supabaseSubscriptionData] ===
+      undefined
+    ) {
+      delete supabaseSubscriptionData[
+        key as keyof typeof supabaseSubscriptionData
+      ];
+    }
+  });
+
+  // Strip explicit undefined values to ensure Supabase falls back to Postgres defaults
+  Object.keys(supabaseSubscriptionData).forEach((key) => {
+    if (
+      supabaseSubscriptionData[key as keyof typeof supabaseSubscriptionData] ===
+      undefined
+    ) {
+      delete supabaseSubscriptionData[
+        key as keyof typeof supabaseSubscriptionData
+      ];
+    }
+  });
 
   const { data: subData, error: subError } = await supabase
     .from('subscriptions')
@@ -156,5 +188,100 @@ export async function handleSubscriptionStatusChange(subscriptionId: string) {
     console.error('Error inserting subscription data:', subError);
   }
 
+  // --- BEGIN DOWNGRADE/UPGRADE ENFORCER ---
+
+  // 1. Extract the new limit directly from the expanded Stripe product metadata
+  const price = subscriptionData.items.data[0]?.price;
+  const product = price?.product as Stripe.Product | undefined;
+
+  // Fallback to 2 (Trial limit) if metadata is missing
+  const newPropertyLimit = parseInt(product?.metadata?.limit_properties || '2');
+
+  console.log(
+    `Enforcing new property limit: ${newPropertyLimit} for user: ${customerData.id}`,
+  );
+
+  // 2. Fetch all properties for this user, ordered oldest to newest
+  const { data: userProperties, error: propsError } = await supabase
+    .from('properties')
+    .select('id, status')
+    .eq('owner_id', customerData.id)
+    .order('created_at', { ascending: true }); // Oldest (most important) properties first
+
+  if (!propsError && userProperties) {
+    // 3. Split properties into two groups based on the new limit
+    const propertiesToKeepActive = userProperties.slice(0, newPropertyLimit);
+    const propertiesToLock = userProperties.slice(newPropertyLimit);
+
+    // 4. Activate properties that are within the limit (This handles UPGRADES!)
+    const activateIds = propertiesToKeepActive.map((p) => p.id);
+    if (activateIds.length > 0) {
+      await supabase
+        .from('properties')
+        .update({ status: 'active' })
+        .in('id', activateIds)
+        .eq('status', 'inactive'); // Only update the ones that need it
+    }
+
+    // 5. Deactivate properties that exceed the limit (This handles DOWNGRADES!)
+    const lockIds = propertiesToLock.map((p) => p.id);
+    if (lockIds.length > 0) {
+      await supabase
+        .from('properties')
+        .update({ status: 'inactive' })
+        .in('id', lockIds)
+        .eq('status', 'active'); // Only update the ones that need it
+    }
+
+    console.log(
+      `Locked ${lockIds.length} properties and activated ${activateIds.length} properties.`,
+    );
+  } else {
+    console.error(
+      'Error fetching properties for limit enforcement:',
+      propsError,
+    );
+  }
+  // --- END DOWNGRADE/UPGRADE ENFORCER ---
+
   return customerData;
+}
+
+export async function handleInvoicePaid(invoice: Stripe.Invoice) {
+  const supabaseAdmin = createServiceClient();
+  const stripeCustomerId = invoice.customer as string;
+
+  // 1. Find the Supabase user_id associated with this Stripe Customer ID
+  const { data: customerData, error: customerError } = await supabaseAdmin
+    .from('customers')
+    .select('id') // The Supabase user_id
+    .eq('stripe_customer_id', stripeCustomerId)
+    .single();
+
+  if (customerError || !customerData) {
+    console.error(
+      'Webhook Error: Could not find Supabase customer for Stripe ID:',
+      stripeCustomerId,
+    );
+    return;
+  }
+
+  const userId = customerData.id;
+
+  // 2. Reset the AI Parses counter for the new billing month
+  const { error: usageError } = await supabaseAdmin
+    .from('user_usage')
+    .update({ ai_parses_count: 0 })
+    .eq('user_id', userId);
+
+  if (usageError) {
+    console.error(
+      `Webhook Error: Failed to reset usage for user ${userId}`,
+      usageError,
+    );
+  } else {
+    console.log(
+      `✅ Successfully reset AI Parses for user ${userId} (Invoice Paid)`,
+    );
+  }
 }

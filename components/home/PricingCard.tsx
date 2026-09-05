@@ -12,6 +12,7 @@ import { Check } from 'lucide-react';
 import { createStripeSession } from '@/lib/actions/stripeActions';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { PLAN_FEATURES } from '@/lib/utils/planFeatures';
 
 export default function PricingCard({
   productData,
@@ -33,8 +34,11 @@ export default function PricingCard({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  const isPro = productData.name.toLowerCase() === 'pro';
-  // productData.name.toLowerCase() === 'premium';
+  const isPro = productData.name.includes('Pro');
+  console.log('Product Data: ', productData);
+
+  const features =
+    PLAN_FEATURES[productData.name] || PLAN_FEATURES['Default Plan'];
 
   const handleStripeSession = async (priceId: string) => {
     setIsLoading(true);
@@ -97,17 +101,17 @@ export default function PricingCard({
         <div className='h-px w-full bg-zinc-100 mb-6' />
 
         <ul className='space-y-4 text-sm'>
-          {productData.metadata &&
-            Object.values(productData.metadata).map((item, index) => (
-              <li
-                key={index}
-                className='flex items-start gap-3 text-zinc-600 font-medium'>
-                <Check
-                  className={`h-5 w-5 shrink-0 ${isPro ? 'text-primary' : 'text-zinc-400'}`}
-                />
-                <span>{String(item)}</span>
-              </li>
-            ))}
+          {/* 3. Map over your frontend features array instead of the raw metadata */}
+          {features.map((feature, index) => (
+            <li
+              key={index}
+              className='flex items-start gap-3 text-zinc-600 font-medium'>
+              <Check
+                className={`h-5 w-5 shrink-0 ${isPro ? 'text-primary' : 'text-zinc-400'}`}
+              />
+              <span>{feature}</span>
+            </li>
+          ))}
         </ul>
       </CardContent>
     </Card>
