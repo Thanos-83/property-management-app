@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/utils/supabase/supabaseDB';
-import { processInboundEmail } from '@/lib/services/ai/emailParsingService';
+// import { processInboundEmail } from '@/lib/services/ai/emailParsingService';
 import { Resend } from 'resend';
+import { Client } from '@upstash/qstash';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const qstash = new Client({
+  token: process.env.QSTASH_TOKEN!,
+  baseUrl: process.env.QSTASH_URL,
+});
 export async function POST(req: Request) {
   try {
     // 1. Catch the incoming JSON payload from Resend
@@ -55,8 +60,8 @@ export async function POST(req: Request) {
       );
     }
 
-    textBody = data.text || '';
-    htmlBody = data.html || '';
+    textBody = data.text || emailData.text || '';
+    htmlBody = data.html || emailData.html || '';
 
     // 4. Initialize Supabase Admin Client
     const supabaseAdmin = createServiceClient();
@@ -148,20 +153,26 @@ export async function POST(req: Request) {
     }
 
     // ==========================================
-    // STEP 2: The LLM Trigger
+    // DECOUPLED QSTASH TRIGGER
     // ==========================================
-    // We pass the saved ID, subject, text, and user ID to the parsing service.
-    // We await it so the extraction finishes before the serverless function spins down.
-    await processInboundEmail(
-      savedEmail.id,
-      subject || '',
-      textBody || htmlBody || '',
-      authMemberId,
-    );
 
-    // 5. Respond with 200 OK so the email provider knows we caught it
+    // Look for the Tunnel URL first (for local dev). If it's not there, use the main App URL (for production).
+    const baseUrl =
+      process.env.QSTASH_CALLBACK_URL || process.env.NEXT_PUBLIC_APP_URL;
+
+    await qstash.publishJSON({
+      url: `${baseUrl}/api/jobs/process-email`,
+      body: {
+        emailId: savedEmail.id,
+        retryCount: 0,
+      },
+    });
+
+    console.log(`Pushed email ${savedEmail.id} to QStash queue.`);
+
+    // Respond immediately so Resend doesn't timeout!
     return NextResponse.json(
-      { success: true, message: 'Email received, logged, and processed' },
+      { success: true, message: 'Queued for processing' },
       { status: 200 },
     );
   } catch (error: unknown) {
