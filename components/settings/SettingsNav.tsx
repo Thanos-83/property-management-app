@@ -4,13 +4,18 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
-import { User, Shield, Bell, CreditCard, Blocks } from 'lucide-react';
+import { User, Shield, Bell, CreditCard, Blocks, Receipt } from 'lucide-react';
 
 const sidebarNavItems = [
   {
     title: 'Profile',
     href: '/dashboard/settings/profile',
     icon: User,
+  },
+  {
+    title: 'Tax Profile',
+    href: '/dashboard/settings/tax-profile',
+    icon: Receipt,
   },
   {
     title: 'Billing',

@@ -17,6 +17,7 @@ import {
   NotebookPen,
   MessagesSquareIcon,
   SettingsIcon,
+  FileText,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/dashboard/nav-main';
@@ -65,6 +66,13 @@ export function AppSidebar({ user, usageMetrics, ...props }: AppSidebarProps) {
         title: 'Bookings',
         url: '/dashboard/bookings',
         icon: NotebookPen,
+        isActive: true,
+        items: [],
+      },
+      {
+        title: 'Invoices',
+        url: '/dashboard/invoices',
+        icon: FileText,
         isActive: true,
         items: [],
       },
